@@ -505,10 +505,11 @@ const SCHEMA={
   kampen:{one:'kamp',global:1,fields:[
     {k:'naam',l:'Naam van het kamp',req:1,w:1},
     {k:'type',l:'Soort kamp',t:'select',o:KAMP_TYPES,req:1},
+    {k:'maxDeelnemers',l:'Maximum aantal deelnemers',t:'num'},{k:'maxTandems',l:'Maximum aantal tandems (alleen fietskamp)',t:'num'},
     {k:'fietsonderdelen',l:'Fietsritten en fietsen tonen',t:'select',o:['Automatisch','Ja','Nee']},
     {k:'start',l:'Eerste dag',t:'date'},{k:'eind',l:'Laatste dag',t:'date'},
     {k:'bestemming',l:'Bestemming / regio',w:1},
-    {k:'bijdrage',l:'Prijs kamp per deelnemer (€)',t:'num'},{k:'maxDeelnemers',l:'Maximum aantal deelnemers',t:'num'},{k:'maxTandems',l:'Maximum aantal tandems (fietskamp)',t:'num'},{k:'budget',l:'Budget uitgaven (€)',t:'num'},
+    {k:'bijdrage',l:'Prijs kamp per deelnemer (€)',t:'num'},{k:'budget',l:'Budget uitgaven (€)',t:'num'},
     {k:'verantwoordelijke',l:'Hoofdverantwoordelijke'},{k:'noodnummer',l:'Noodnummer begeleiding',t:'tel'},
     {k:'notities',l:'Algemene info',t:'area',w:1}]},
   kalender:{one:'datum',global:1,fields:[
@@ -1470,6 +1471,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-1710 -->
+<!-- versie 20261125-1715 -->
 </body>
 </html>
