@@ -68,6 +68,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .brand .grow{flex:1;min-width:0}
 .sync{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.savebtn{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex:none}.savebtn .ico{width:16px;height:16px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block}
 .sync.ok i{background:var(--ok)} .sync.err i{background:var(--red)}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:8px}
@@ -481,6 +482,7 @@ nav.tabs a.hometab{font-size:13.5px;padding:8px 14px}
     <div class="brand">
       <a class="home" href="#overzicht" aria-label="Naar de startpagina"><div class="grow"><h1 class="wm" aria-label="S-Sport Recreas"><span>S·SPORT</span><i>//</i><span>RECREAS</span></h1><div class="tag" id="kampType">Kampen</div></div></a>
       <div class="sync" id="sync"><i></i><span>Laden</span></div>
+      <button type="button" class="btn small primary savebtn" data-backup="1" title="Bewaar alle gegevens en foto's als bestand op deze computer"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/></svg><span>Opslaan</span></button>
     </div>
     <div class="kamprow"><select class="kampsel" id="kampSel" aria-label="Kies een kamp"></select><span class="sub" id="tripSub"></span></div>
     <nav class="tabs" id="tabs" aria-label="Menu"></nav>
@@ -721,12 +723,20 @@ let lastBackup=0,pendingRestore=null;
 function saveFile(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 const blobToDataURL=b=>new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(b)});
 async function makeBackup(){
-  toast('Back-up wordt gemaakt…');
+  toast('Alles wordt opgeslagen…');
   const media={};try{for(const [k,blob] of await idbAll('media'))media[k]=await blobToDataURL(blob)}catch(e){}
-  const blob=new Blob([JSON.stringify({app:'recreas-kampen',versie:1,gemaakt:new Date().toISOString(),data,media})],{type:'application/json'});
-  const fn='recreas-kampen-backup-'+iso(new Date())+'.json';
-  if(downloads){try{await downloads.save({filename:fn,data:blob})}catch(e){if(e&&e.code==='declined')return;toast('Back-up opslaan lukte niet');return}}else saveFile(fn,blob);
+  // in de gedeelde versie staan foto's online: haal ze op en stop ze mee in het bestand
+  const kopie=JSON.parse(JSON.stringify(data));let mis=0;const gezien={};
+  const walk=async o=>{if(!o||typeof o!=='object')return;if(Array.isArray(o)){for(const x of o)await walk(x);return}
+    if(typeof o.url==='string'&&o.id&&!o.idb){const key='a'+String(o.id).replace(/[^\w-]/g,'');
+      try{if(!gezien[key]){const b=await (await fetch(o.url)).blob();media[key]=await blobToDataURL(b);gezien[key]=1}o.idb=key;o.type=o.type||'';delete o.url;delete o.id}catch(e){mis++}return}
+    for(const v of Object.values(o))await walk(v)};
+  if(mode!=='lokaal')await walk(kopie);
+  const blob=new Blob([JSON.stringify({app:'recreas-kampen',versie:1,gemaakt:new Date().toISOString(),data:kopie,media})],{type:'application/json'});
+  const nu=new Date(),fn='recreas-kampen-'+iso(nu)+'-'+String(nu.getHours()).padStart(2,'0')+'u'+String(nu.getMinutes()).padStart(2,'0')+'.json';
+  if(downloads){try{await downloads.save({filename:fn,data:blob})}catch(e){if(e&&e.code==='declined')return;toast('Opslaan lukte niet');return}}else saveFile(fn,blob);
   lastBackup=Date.now();idbDo('kv','readwrite',st=>st.put(lastBackup,'backup')).catch(()=>{});render();
+  setTimeout(()=>toast('Opgeslagen als '+fn+' (map Downloads)'+(mis?' · '+mis+' foto(\'s) niet meegekomen':'')),300);
 }
 async function readBackup(file){try{const o=JSON.parse(await file.text());if(o.app!=='recreas-kampen'||!o.data)throw 0;pendingRestore=o;render()}catch(e){toast('Dit is geen geldig back-upbestand van deze app')}}
 async function restoreBackup(){
@@ -738,7 +748,7 @@ async function restoreBackup(){
 }
 function backupPanel(){
   if(mode!=='lokaal')return '';const r=pendingRestore;
-  return `<div class="panel" style="margin-top:22px"><h3>Back-up</h3><p class="hint" style="margin-top:0">Alles staat alleen op dit toestel. Maak geregeld een back-up (een bestand met alle gegevens en foto's) en bewaar het in Bestanden, iCloud of je mail. Met hetzelfde bestand zet je alles over naar een ander toestel.${lastBackup?' Laatste back-up: '+esc(fdl(iso(new Date(lastBackup))))+'.':''}</p>
+  return `<div class="panel" style="margin-top:22px"><h3>Back-up</h3><p class="hint" style="margin-top:0">Alles staat alleen op dit toestel. Druk geregeld op <b>Opslaan</b> (rechtsboven): dan komt er een bestand met alle gegevens en foto's in je map Downloads. Bewaar het ook in iCloud of je mail. Met hetzelfde bestand zet je alles over naar een ander toestel.${lastBackup?' Laatste back-up: '+esc(fdl(iso(new Date(lastBackup))))+'.':''}</p>
   <div class="row"><button class="btn small primary" data-backup="1">Download back-up</button><label class="btn small">Zet back-up terug<input type="file" id="restoreIn" accept="application/json,.json" hidden></label></div>
   ${r?`<div class="banner" style="margin:12px 0 0"><p>Back-up van ${esc(r.gemaakt?fdl(String(r.gemaakt).slice(0,10)):'onbekende datum')} met ${(r.data.kampen||[]).length} kamp(en). <b>Alles wat nu op dit toestel staat, wordt vervangen.</b></p><button class="btn small danger" data-restore="1">Vervang alles</button><button class="btn small" data-restorecancel="1">Annuleer</button></div>`:''}</div>`;
 }
@@ -1491,6 +1501,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-1920 -->
+<!-- versie 20261125-1928 -->
 </body>
 </html>
