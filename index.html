@@ -297,6 +297,9 @@ table.bal{min-width:520px}
 .prijs{width:84px;text-align:right;background:var(--bg);border:1px solid var(--orange);border-radius:8px;padding:5px 8px;color:var(--fg);font-size:14px}
 .bud{width:100px;text-align:right;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
 .bud:focus{border-color:var(--orange);outline:none}
+.catopen{color:var(--fg);cursor:pointer}.catopen:hover{text-decoration-color:var(--orange)}
+.catopen .cnt{font-family:var(--display);font-size:11px;font-weight:700;background:var(--surface2);border-radius:999px;padding:1px 7px;color:var(--muted);text-decoration:none;display:inline-block}
+.catbons{margin:4px 0 8px}
 .delcat{color:var(--red);text-decoration:none;font-size:16px;margin-left:4px}
 .delcat.armed{font-size:12px}
 .addcat{display:flex;flex-direction:column;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -517,6 +520,25 @@ const DEF_CATS=[['Huur kampplaats','Vaste kosten'],['Eten','Vaste kosten'],['Ver
 const LEGACY_CAT={'Subsidie':'Opbrengsten','Terugbetaling':'Opbrengsten','Andere inkomst':'Opbrengsten','Andere opbrengst':'Opbrengsten','Verblijf':'Vaste kosten','Eten & drinken':'Vaste kosten','Fietsen & herstel':'Variabele kosten','Medisch':'Variabele kosten','Andere':'Variabele kosten'};
 function cats(){const c=DEF_CATS.map(([naam,soort])=>({naam,soort,std:1}));(data.categorieen||[]).forEach(r=>{if(r.naam&&!c.some(x=>x.naam.toLowerCase()===String(r.naam).toLowerCase()))c.push({naam:r.naam,soort:CAT_GROUPS.includes(r.soort)?r.soort:'Variabele kosten',id:r.id})});return c}
 const catGroup=n=>{const c=cats().find(x=>x.naam===n);return c?c.soort:(LEGACY_CAT[n]||'Variabele kosten')};
+const CAT_WOORDEN={'Terrasjes':['terras','café','cafe','bar ','drank','koffie','pint','bier','frisdrank','ijsje','taverne','brasserie','consumptie','aperitief','tearoom'],
+  'Eten':['supermarkt','colruyt','delhaize','aldi','lidl','carrefour','spar','okay','albert heijn','jumbo','bakker','brood','slager','boodschappen','eten','maaltijd','frituur','pizza','traiteur','restaurant','picknick','ontbijt','lunch'],
+  'Vervoer':['benzine','diesel','tanken','brandstof','trein','nmbs','bus ','parking','tol ','taxi','shell','q8','esso','total','dats','lukoil','huurwagen','busvervoer'],
+  'Huur kampplaats':['huur','verblijf','camping','jeugdherberg','hotel','overnachting','kampplaats'],
+  'Activiteiten':['activiteit','toegang','inkom','zwembad','museum','pretpark','kajak','bowling','minigolf','klimmen','escape','rondleiding','excursie'],
+  'Materiaal':['materiaal','brico','gamma','hubo','action','decathlon','fietsonderdeel','binnenband','fietsband','batterij'],
+  'Vergoeding monitoren':['vergoeding']};
+function guessCat(txt){const t=' '+String(txt||'').toLowerCase()+' ';if(!t.trim())return '';const ok=expenseCats();
+  for(const c of ok)if(c.length>3&&t.includes(c.toLowerCase()))return c;
+  for(const [c,ws] of Object.entries(CAT_WOORDEN))if(ok.includes(c)&&ws.some(w=>t.includes(w)))return c;
+  return ''}
+const bkCat=r=>{const isIn=r.soort==='Inkomst';const n=r.categorie||(isIn?'Sponsoring':'Onvoorziene kosten');let g=catGroup(n);if(isIn)g='Opbrengsten';else if(g==='Opbrengsten')g='Variabele kosten';return [g,n]};
+function showCat(g,n){const rs=cur('boekhouding').filter(r=>{const [gg,nn]=bkCat(r);return gg===g&&nn===n}).sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+  const tot=rs.reduce((s,r)=>s+num(r.bedrag),0);const bons=rs.filter(r=>r.bon);
+  $('#layer').innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="catT"><div class="bar2"><h3 id="catT">${esc(n)}</h3><button type="button" class="btn small" id="shX">Sluit</button></div>
+  <p class="hint" style="margin:0">${esc(g)} · ${rs.length} boeking${rs.length===1?'':'en'} · samen <b class="num">${esc(eur(tot))}</b>${bons.length?' · '+bons.length+' document'+(bons.length===1?'':'en'):''}</p>
+  ${bons.length?`<div class="bons catbons">${bons.map(r=>`<button class="bon" data-bon="${esc(r.id)}"><div class="img">${isPdf(r.bon)?'<span class="lbl">PDF</span>':`<img src="${esc(phSrc(r.bon))}" alt="" loading="lazy">`}</div><div class="c"><div class="amt">${esc(eur(r.bedrag))}</div><div>${esc(r.omschrijving||'')}</div><div>${esc(r.datum?fd(r.datum):'')}</div></div></button>`).join('')}</div>`:''}
+  ${rs.length?`<div>${rs.map(txRow).join('')}</div>`:'<p class="hint">Nog geen boekingen in deze categorie.</p>'}
+  <div class="actions"><span></span><button class="btn primary" data-new="boekhouding" data-cat="${esc(n)}">+ Boeking in ${esc(n)}</button></div></div></div>`}
 const expenseCats=()=>cats().filter(c=>c.soort!=='Opbrengsten').map(c=>c.naam);
 const SCHEMA={
   kampen:{one:'kamp',global:1,fields:[
@@ -1145,12 +1167,12 @@ medicatie(){
 boekhouding(){
   const m=money();const bk=cur('boekhouding');const list=[...bk].sort((a,b)=>(b.datum||'').localeCompare(a.datum||'')||(b.aangemaakt||0)-(a.aangemaakt||0));
   const begr=K().begroting||{};const all=cats();
-  const spent={};bk.forEach(r=>{const isIn=r.soort==='Inkomst';const n=r.categorie||(isIn?'Sponsoring':'Onvoorziene kosten');let g=catGroup(n);if(isIn)g='Opbrengsten';else if(g==='Opbrengsten')g='Variabele kosten';const key=g+'|'+n;spent[key]=(spent[key]||0)+num(r.bedrag)});
+  const spent={},cnt={};bk.forEach(r=>{const [g,n]=bkCat(r);const key=g+'|'+n;spent[key]=(spent[key]||0)+num(r.bedrag);cnt[key]=(cnt[key]||0)+1});
   const rowsOf=g=>{const names=all.filter(c=>c.soort===g).map(c=>c.naam);Object.keys(spent).forEach(k=>{const [gg,n]=k.split('|');if(gg===g&&!names.includes(n))names.push(n)});return names};
   const sub={};
   const grpTable=g=>{const isIn=g==='Opbrengsten';let tb=0,tw=0;
     const rows=rowsOf(g).map(n=>{const b=num(begr[n]),w=spent[g+'|'+n]||0;tb+=b;tw+=w;const c=all.find(x=>x.naam===n);const diff=isIn?w-b:b-w;
-      return `<tr class="${!b&&!w?'idle':''}"><td>${esc(n)}${c&&c.id?` <button class="linkbtn delcat" data-delcat="${esc(c.id)}" aria-label="Verwijder categorie ${esc(n)}">×</button>`:''}</td><td><input class="bud num" inputmode="decimal" data-cat="${esc(n)}" value="${b?esc(String(b).replace('.',',')):''}" placeholder="0" aria-label="Begroot voor ${esc(n)}"></td><td class="num">${w?esc(eur(w)):'—'}</td><td class="num ${b||w?(diff<0?'neg':'pos'):''}">${b||w?esc(eur(diff)):''}</td></tr>`}).join('');
+      const nb=cnt[g+'|'+n]||0;return `<tr class="${!b&&!w?'idle':''}"><td><button type="button" class="linkbtn catopen" data-catopen="${esc(g+'|'+n)}" title="Toon de boekingen en documenten">${esc(n)}${nb?` <span class="cnt">${nb}</span>`:''}</button>${c&&c.id?` <button class="linkbtn delcat" data-delcat="${esc(c.id)}" aria-label="Verwijder categorie ${esc(n)}">×</button>`:''}</td><td><input class="bud num" inputmode="decimal" data-cat="${esc(n)}" value="${b?esc(String(b).replace('.',',')):''}" placeholder="0" aria-label="Begroot voor ${esc(n)}"></td><td class="num">${w?esc(eur(w)):'—'}</td><td class="num ${b||w?(diff<0?'neg':'pos'):''}">${b||w?esc(eur(diff)):''}</td></tr>`}).join('');
     if(isIn){const bijB=m.verwacht,bijW=m.bijdr;tb+=bijB;tw+=bijW;sub[g]=[tb,tw];
       return `<tbody><tr class="ghead"><th colspan="4">${g}</th></tr><tr><td><b>Prijs kamp</b><div class="prijsrow">€ <input class="prijs num" id="prijsKamp" inputmode="decimal" value="${K().bijdrage?esc(String(K().bijdrage).replace('.',',')):''}" placeholder="0" aria-label="Prijs kamp per deelnemer"> × ${m.nDeel} deelnemer${m.nDeel===1?'':'s'}</div></td><td class="num">${esc(eur(bijB))}</td><td class="num">${esc(eur(bijW))}</td><td class="num ${bijW-bijB<0?'neg':'pos'}">${esc(eur(bijW-bijB))}</td></tr>${rows}<tr class="gsub"><td>Totaal ${g.toLowerCase()}</td><td class="num">${esc(eur(tb))}</td><td class="num">${esc(eur(tw))}</td><td class="num ${tw-tb<0?'neg':'pos'}">${esc(eur(tw-tb))}</td></tr></tbody>`}
     sub[g]=[tb,tw];
@@ -1165,7 +1187,7 @@ boekhouding(){
     <div class="stat"><div class="lbl">Andere opbrengsten</div><div class="v num pos">${esc(eur(m.inn))}</div></div>
     <div class="stat"><div class="lbl">Uitgaven</div><div class="v num">${esc(eur(m.uit))}</div>${budget?`<div class="hint num">budget ${esc(eur(budget))}</div>`:''}</div>
     <div class="stat"><div class="lbl">Saldo</div><div class="v num ${m.saldo<0?'neg':'pos'}">${esc(eur(m.saldo))}</div></div></div>
-  <div class="panel" style="margin-top:14px"><h3>Begroting en werkelijk</h3><p class="hint" style="margin-top:0">Vul per categorie in wat je verwacht uit te geven. De kolom Werkelijk telt de boekingen op.</p>
+  <div class="panel" style="margin-top:14px"><h3>Begroting en werkelijk</h3><p class="hint" style="margin-top:0">Vul per categorie in wat je verwacht uit te geven. De kolom Werkelijk telt de boekingen op. Klik op een categorie om de boekingen en tickets te zien.</p>
     <div style="overflow-x:auto"><table class="vt bal"><thead><tr><th>Categorie</th><th>Begroot</th><th>Werkelijk</th><th>Verschil</th></tr></thead>${tables}
     <tbody><tr class="gtot"><td>Totaal kosten</td><td class="num">${esc(eur(kb))}</td><td class="num">${esc(eur(kw))}</td><td class="num ${kb-kw<0?'neg':'pos'}">${esc(eur(kb-kw))}</td></tr>
     <tr class="gtot"><td>Resultaat (opbrengsten − kosten)</td><td class="num ${sub['Opbrengsten'][0]-kb<0?'neg':'pos'}">${esc(eur(sub['Opbrengsten'][0]-kb))}</td><td class="num ${sub['Opbrengsten'][1]-kw<0?'neg':'pos'}">${esc(eur(sub['Opbrengsten'][1]-kw))}</td><td></td></tr></tbody></table></div>
@@ -1395,6 +1417,7 @@ function readForm(){
   if(form.col==='monitoren'&&out.aanwezig==='Enkele dagen'&&kampDagen().length&&!out.dagen.length){toast('Duid aan op welke dagen de monitor meegaat');return null}
   if(form.col==='leden')out.medicatie=form.meds.filter(m=>String(m.middel||'').trim()).map(m=>{const v={};MED_F.forEach(([k])=>v[k]=String(m[k]||'').trim());return v});
   if(form.col==='deelnemers'||form.col==='leden'){const bad=form.meds.findIndex(m=>!String(m.middel||'').trim()&&MED_F.some(([k])=>String(m[k]||'').trim()));if(bad>=0){toast('Vul de naam van medicijn '+(bad+1)+' in, of verwijder het');const el=$('#md_'+bad+'_middel');if(el)el.focus();return null}}
+  if(form.col==='boekhouding'&&out.soort!=='Inkomst'&&!out.categorie)out.categorie=guessCat(out.omschrijving+' '+(out.notities||''));
   if(form.col==='kalender'&&out.tot&&out.tot<out.datum)out.tot='';
   if(form.col==='deelnemers'){const k=K();const prev=form.id?get('deelnemers',form.id):null;const was=prev&&actief(prev);const st=out.status||'Ingeschreven';
     const others=cur('deelnemers').filter(r=>r.id!==form.id&&actief(r));const max=num(k.maxDeelnemers),maxT=num(k.maxTandems);
@@ -1426,7 +1449,7 @@ async function readBon(blob){
     const lim=await sampleFn.limits();if(!lim.images){if(msg)msg.textContent='';return}
     const res=await sampleFn.json(`Je leest een kasticket of rekening voor de boekhouding van een groepskamp. Geef ALLEEN JSON terug: {"datum":"YYYY-MM-DD" of null,"bedrag":totaalbedrag inclusief btw in euro als getal of null,"omschrijving":"winkel of leverancier + kort wat (max 60 tekens)","categorie":een van ${JSON.stringify(expenseCats())}}.`,{images:[blob],modelTier:'quick'});
     if(!form)return;const set=(k,v)=>{const el=$('#f_'+k);if(el&&v!=null&&v!=='')el.value=v};
-    if(res&&typeof res==='object'){if(/^\d{4}-\d{2}-\d{2}$/.test(res.datum||''))set('datum',res.datum);if(typeof res.bedrag==='number')set('bedrag',String(res.bedrag).replace('.',','));const o=$('#f_omschrijving');if(o&&!o.value&&typeof res.omschrijving==='string')o.value=res.omschrijving.slice(0,80);if(expenseCats().includes(res.categorie))set('categorie',res.categorie)}
+    if(res&&typeof res==='object'){if(/^\d{4}-\d{2}-\d{2}$/.test(res.datum||''))set('datum',res.datum);if(typeof res.bedrag==='number')set('bedrag',String(res.bedrag).replace('.',','));const o=$('#f_omschrijving');if(o&&!o.value&&typeof res.omschrijving==='string')o.value=res.omschrijving.slice(0,80);const cc=$('#f_categorie');if(cc&&(!cc.value||form.catAuto)){const g=expenseCats().includes(res.categorie)?res.categorie:guessCat(res.omschrijving);if(g){cc.value=g;form.catAuto=true}}}
     const m2=$('#aiMsg');if(m2)m2.textContent='Ingevuld door Claude. Controleer even.';
   }catch(e){const m2=$('#aiMsg');if(m2)m2.textContent=e&&e.code==='not_granted'?'':'Uitlezen lukte niet, vul zelf in.'}
 }
@@ -1473,7 +1496,8 @@ document.addEventListener('click',async e=>{
   if(ds.mon!==undefined){if(ds.mon==='0')calM=iso(new Date()).slice(0,7);else{const [y,m]=calM.split('-').map(Number);calM=iso(new Date(y,m-1+Number(ds.mon),1)).slice(0,7)}render();return}
   if(ds.cal){openDay(ds.cal);return}
   if(ds.gokamp){setKamp(ds.gokamp);if(ds.start)calM=ds.start.slice(0,7);closeForm();render();if(view!=='overzicht')toast('Kamp gekozen: '+nameOf('kampen',ds.gokamp));return}
-  if(ds.new){const p={};if(ds.for)p.deelnemer=ds.for;if(ds.rol){p.rol=ds.rol;if(ds.rol==='Noodnummer Recreas')p.kamp=''}if(ds.date){if(ds.new==='kampen')p.start=ds.date;else p.datum=ds.date}closeForm();return openForm(ds.new,null,p)}
+  if(ds.catopen){const i=ds.catopen.indexOf('|');showCat(ds.catopen.slice(0,i),ds.catopen.slice(i+1));return}
+  if(ds.new){const p={};if(ds.cat){p.categorie=ds.cat;p.soort=catGroup(ds.cat)==='Opbrengsten'?'Inkomst':'Uitgave'}if(ds.for)p.deelnemer=ds.for;if(ds.rol){p.rol=ds.rol;if(ds.rol==='Noodnummer Recreas')p.kamp=''}if(ds.date){if(ds.new==='kampen')p.start=ds.date;else p.datum=ds.date}closeForm();return openForm(ds.new,null,p)}
   if(ds.edit){closeForm();return openForm(ds.edit,ds.id)}
   const copy=(txt,ok)=>navigator.clipboard.writeText(txt).then(()=>toast(ok),()=>toast('Kopiëren lukt hier niet; selecteer de tekst zelf'));
   if(ds.copytel){copy(ds.copytel,'Nummer gekopieerd');return}
@@ -1549,6 +1573,7 @@ document.addEventListener('change',async e=>{
   if(t.id==='prijsKamp'){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{bijdrage:t.value.trim()===''?'':num(t.value)});toast('Prijs kamp bewaard')}catch(err){toast('Prijs bewaren lukte niet')}return}
   if(t.classList.contains('bud')){const k=K();if(!k.id)return;const b={...(k.begroting||{})};const v=num(t.value);if(v)b[t.dataset.cat]=v;else delete b[t.dataset.cat];
     try{await patchRec('kampen',k.id,{begroting:b})}catch(err){toast('Begroting bewaren lukte niet')}return}
+  if(t.id==='f_categorie'&&form)form.catAuto=false;
   if(t.id==='f_categorie'&&t.value){const s=$('#f_soort');if(s)s.value=catGroup(t.value)==='Opbrengsten'?'Inkomst':'Uitgave';return}
   if(t.id==='mediaIn'&&t.files.length){
     const files=[...t.files];t.value='';const say=s=>{const m=$('#mediaMsg');if(m)m.textContent=s};
@@ -1559,7 +1584,8 @@ document.addEventListener('change',async e=>{
     const f=t.files[0];t.value='';const m=$('#aiMsg');if(m)m.textContent='Opladen…';
     try{const {ph,blob}=await upload(f);if(form.ph)form.removed.push(form.ph);form.ph=ph;form.blob=blob;form.uploadedNew=true;photoBox();if(form.col==='boekhouding')readBon(blob)}catch(err){const m2=$('#aiMsg');if(m2)m2.textContent=err&&err.message?err.message:'Opladen lukte niet'}}
 });
-document.addEventListener('input',e=>{if(e.target.classList.contains('keep'))drafts[e.target.id]=e.target.value;
+document.addEventListener('input',e=>{
+  if(e.target.id==='f_omschrijving'&&form&&form.col==='boekhouding'){const c=$('#f_categorie'),s=$('#f_soort');if(c&&(!c.value||form.catAuto)&&(!s||s.value!=='Inkomst')){const g=guessCat(e.target.value);if(g){c.value=g;form.catAuto=true}else if(form.catAuto){c.value='';}}}if(e.target.classList.contains('keep'))drafts[e.target.id]=e.target.value;
   if(e.target.id==='chatInput')document.querySelectorAll('[data-wabase]').forEach(a=>a.href=a.dataset.wabase+encodeURIComponent(e.target.value));if(e.target.id==='q'){q=e.target.value;const pos=e.target.selectionStart;render();const n=$('#q');if(n){n.focus();n.setSelectionRange(pos,pos)}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#veil'))closeForm()});
 document.addEventListener('mousedown',e=>{if(e.target.id==='veil')closeForm()});
@@ -1581,6 +1607,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-2130 -->
+<!-- versie 20261125-2133 -->
 </body>
 </html>
