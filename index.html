@@ -262,6 +262,11 @@ nav.tabs a.hometab{font-size:18px;padding:5px 11px}
 .mainsubs b{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:600}
 /* verdeling */
 .multi{display:flex;flex-wrap:wrap;gap:6px}
+.mdagen{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.mdag{border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.mdag b{font-size:22px;color:var(--teal)}.mdag small{color:var(--muted);font-size:12px;line-height:1.3}
+.mondag{margin:0 0 10px}
+.fld[hidden]{display:none!important}
 .mchip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 10px;background:var(--surface);cursor:pointer;font-size:14px}
 .mchip:has(input:checked){border-color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,var(--surface))}
 table.vt{width:100%;border-collapse:collapse;min-width:420px}
@@ -540,7 +545,8 @@ const SCHEMA={
     {k:'ehbo',l:'EHBO',t:'select',o:['Ja','Nee']},
     {k:'rijbewijs',l:'Rijbewijs',t:'select',o:['Nee','B','B+E','C / D']},
     {k:'kamer',l:'Kamer',t:'ref',ref:'kamers'},
-    {k:'beschikbaar',l:'Aanwezig (bv. hele kamp, ma–wo)'},
+    {k:'aanwezig',l:'Gaat mee',t:'select',o:['Hele kamp','Enkele dagen']},
+    {k:'dagen',l:'Welke dagen gaat deze monitor mee?',t:'days',w:1},
     {k:'vergoeding',l:'Vergoeding (€)',t:'num'},
     {k:'taken',l:'Taken en verantwoordelijkheden',t:'area',w:1},
     {k:'noodcontact',l:'Noodcontact (naam + nummer)',w:1},
@@ -848,10 +854,17 @@ function dayItems(d){
   data.kalender.filter(r=>r.kamp===curKamp&&r.datum<=d&&(r.tot||r.datum)>=d).forEach(r=>it.push({c:'cal',col:'kalender',id:r.id,t:r.uur||'',k:'Kalender'+(r.soort?' · '+r.soort:''),n:r.titel,s:r.notities||''}));
   return it.sort((a,b)=>(a.t||'99').localeCompare(b.t||'99'));
 }
+function kampDagen(){const k=K();const s=pd(k.start),e=pd(k.eind||k.start);const out=[];if(s&&e&&e>=s)for(let d=new Date(s);d<=e&&out.length<60;d.setDate(d.getDate()+1))out.push(iso(d));return out}
+const deelsMee=r=>r.aanwezig==='Enkele dagen';
+const monMee=(r,d)=>!deelsMee(r)||(Array.isArray(r.dagen)&&r.dagen.includes(d));
+function monAanw(r){if(deelsMee(r)){const ds=(Array.isArray(r.dagen)?r.dagen:[]).slice().sort();return ds.length?ds.map(fd).join(', '):'Dagen nog niet aangeduid'}return r.aanwezig||r.beschikbaar||''}
+function monDag(d){const m=cur('monitoren');if(!m.length)return '';const mee=m.filter(r=>monMee(r,d)).sort(byName);
+  return `<p class="hint mondag"><b>Monitoren ${mee.length} / ${m.length}:</b> ${mee.length?esc(mee.map(r=>r.naam).join(', ')):'niemand aanwezig'}</p>`}
+function syncDagen(){const s=$('#f_aanwezig'),b=$('#fld_dagen');if(s&&b)b.hidden=s.value!=='Enkele dagen'}
 function timeline(d){
-  const it=dayItems(d);
-  if(!it.length)return `<div class="empty"><b>Nog niets gepland</b>Voeg een activiteit, maaltijd of planningsitem toe voor ${esc(fdl(d))}.</div>`;
-  return `<div class="tl">${it.map(i=>`<button class="tli ${i.c}" data-edit="${i.col}" data-id="${esc(i.id)}"><div class="tm num">${esc(i.t||'—')}</div><div class="bx"><div class="k">${esc(i.k)}</div><div class="n">${esc(i.n)}</div>${i.s?`<div class="s">${esc(i.s)}</div>`:''}</div></button>`).join('')}</div>`;
+  const it=dayItems(d);const md=monDag(d);
+  if(!it.length)return md+`<div class="empty"><b>Nog niets gepland</b>Voeg een activiteit, maaltijd of planningsitem toe voor ${esc(fdl(d))}.</div>`;
+  return md+`<div class="tl">${it.map(i=>`<button class="tli ${i.c}" data-edit="${i.col}" data-id="${esc(i.id)}"><div class="tm num">${esc(i.t||'—')}</div><div class="bx"><div class="k">${esc(i.k)}</div><div class="n">${esc(i.n)}</div>${i.s?`<div class="s">${esc(i.s)}</div>`:''}</div></button>`).join('')}</div>`;
 }
 function money(){
   const bk=cur('boekhouding');
@@ -985,9 +998,10 @@ monitoren(){
   const ehbo=list.filter(r=>r.ehbo==='Ja').length,rij=list.filter(r=>r.rijbewijs&&r.rijbewijs!=='Nee').length,verg=list.reduce((s,r)=>s+num(r.vergoeding),0);
   return header('Monitoren <em>'+list.length+'</em>','monitoren')+(list.length?'':copyBar('monitoren'))+
   (list.length?`<p class="hint num">${ehbo} met EHBO · ${rij} met rijbewijs${verg?' · vergoedingen samen '+esc(eur(verg)):''} · ${cur('deelnemers').length?'1 monitor per '+(cur('deelnemers').length/list.length).toFixed(1).replace('.',',')+' deelnemers':''}</p>
+  ${kampDagen().length&&list.some(deelsMee)?`<div class="panel"><h3>Monitoren per dag</h3><div class="mdagen">${kampDagen().map(d=>{const n=list.filter(r=>monMee(r,d));return `<div class="mdag" title="${esc(n.map(r=>r.naam).join(', '))}"><span class="lbl">${esc(fd(d))}</span><b class="num">${n.length}</b><small>${esc(n.map(r=>r.naam.split(' ')[0]).join(', ')||'niemand')}</small></div>`}).join('')}</div></div>`:''}
   <div class="grid">${list.map(r=>`<button class="card" data-edit="monitoren" data-id="${esc(r.id)}"><div class="t">${esc(r.naam)}</div>
-   <div class="row">${r.functie?`<span class="chip o">${esc(r.functie)}</span>`:''}${r.brevet&&r.brevet!=='Geen'?`<span class="chip">${esc(r.brevet)}</span>`:''}${r.ehbo==='Ja'?'<span class="chip k">EHBO</span>':''}${r.rijbewijs&&r.rijbewijs!=='Nee'?`<span class="chip">Rijbewijs ${esc(r.rijbewijs)}</span>`:''}<span class="chip">${r.kamer&&get('kamers',r.kamer)?'Kamer '+esc(nameOf('kamers',r.kamer)):'Geen kamer'}</span></div>
-   <div class="m">${esc([r.gsm,r.beschikbaar].filter(Boolean).join(' · '))}</div>${r.taken?`<div class="m">${esc(r.taken)}</div>`:''}${r.dieet?`<div class="m">Dieet: ${esc(r.dieet)}</div>`:''}</button>`).join('')}</div>`
+   <div class="row">${r.functie?`<span class="chip o">${esc(r.functie)}</span>`:''}${r.brevet&&r.brevet!=='Geen'?`<span class="chip">${esc(r.brevet)}</span>`:''}${r.ehbo==='Ja'?'<span class="chip k">EHBO</span>':''}${r.rijbewijs&&r.rijbewijs!=='Nee'?`<span class="chip">Rijbewijs ${esc(r.rijbewijs)}</span>`:''}<span class="chip">${r.kamer&&get('kamers',r.kamer)?'Kamer '+esc(nameOf('kamers',r.kamer)):'Geen kamer'}</span>${deelsMee(r)?`<span class="chip g">${(r.dagen||[]).length} van ${kampDagen().length||'?'} dagen</span>`:r.aanwezig==='Hele kamp'?'<span class="chip k">Hele kamp</span>':''}</div>
+   <div class="m">${esc([r.gsm,deelsMee(r)?'Mee op: '+monAanw(r):r.aanwezig?'':r.beschikbaar].filter(Boolean).join(' · '))}</div>${r.taken?`<div class="m">${esc(r.taken)}</div>`:''}${r.dieet?`<div class="m">Dieet: ${esc(r.dieet)}</div>`:''}</button>`).join('')}</div>`
   :empty('Nog geen monitoren','Voeg de begeleiders toe met hun functie, brevet en taken.'));
 },
 kamers(){
@@ -1248,6 +1262,8 @@ function fieldHTML(f,v){
   else if(f.t==='multi'){const pers=f.ref==='personen';const rows=pers?[...cur('deelnemers').sort(byName).map(r=>({id:'deelnemers:'+r.id,naam:r.naam})),...cur('monitoren').sort(byName).map(r=>({id:'monitoren:'+r.id,naam:r.naam+' · monitor'}))]:cur(f.ref).sort(byName);const sel=Array.isArray(v)?v:[];
     return `<div class="fld ${f.w?'wide':''}"><span class="lbl">${esc(f.l)}</span>${pers&&rows.length?`<div class="row"><button type="button" class="btn small" data-selall="deelnemers:" data-for="${id}">Alle deelnemers</button><button type="button" class="btn small" data-selall="monitoren:" data-for="${id}">Alle monitoren</button><button type="button" class="btn small" data-selall="" data-for="${id}">Iedereen</button></div>`:''}<div class="multi" id="${id}">${rows.length?rows.map(r=>`<label class="mchip"><input type="checkbox" value="${esc(r.id)}" ${sel.includes(r.id)?'checked':''}>${esc(r.naam)}</label>`).join(''):`<span class="hint">Nog geen ${pers?'deelnemers of monitoren':'monitoren'} in dit kamp.</span>`}</div></div>`}
   else if(f.t==='cat'){const c=cats();inp=`<select id="${id}"><option value=""></option>${CAT_GROUPS.map(g=>`<optgroup label="${g}">${c.filter(x=>x.soort===g).map(x=>`<option ${x.naam===v?'selected':''}>${esc(x.naam)}</option>`).join('')}</optgroup>`).join('')}${v&&!c.some(x=>x.naam===v)?`<option selected>${esc(v)}</option>`:''}</select><span class="hint">Nieuwe categorie nodig? Maak ze aan onderaan bij Balans.</span>`}
+  else if(f.t==='days'){const dg=kampDagen();const sel=Array.isArray(v)?v:[];
+    return `<div class="fld wide" id="fld_dagen"><span class="lbl">${esc(f.l)}</span>${dg.length?`<div class="row"><button type="button" class="btn small" data-selall="" data-for="${id}">Alle dagen aan/uit</button></div><div class="multi" id="${id}">${dg.map(d=>`<label class="mchip"><input type="checkbox" value="${d}" ${sel.includes(d)?'checked':''}>${esc(fd(d))}</label>`).join('')}</div>`:`<span class="hint">Vul eerst de eerste en laatste dag van het kamp in bij Kamp aanpassen; daarna kun je hier de dagen aanklikken.</span>`}</div>`}
   else if(f.t==='media') return `<div class="fld wide"><span class="lbl">${esc(f.l)}</span><div class="mediabox" id="mediaBox"></div></div>`;
   else if(f.t==='area') inp=`<textarea id="${id}" ${f.big?'style="min-height:220px"':''}>${esc(v)}</textarea>`;
   else if(f.t==='photo') return `<div class="fld wide"><span class="lbl">${esc(f.l)}</span><div class="photo" id="photoBox"></div></div>`;
@@ -1269,6 +1285,7 @@ function openForm(col,id,preset={}){
   if(col==='boekhouding'&&!vals.soort)vals.soort='Uitgave';
   if(col==='deelnemers'&&!id&&!vals.status)vals.status=capInfo().vol?'Wachtlijst':'Ingeschreven';
   if((col==='kalender'||col==='contacten')&&!id&&!('kamp' in preset))vals.kamp=curKamp;
+  if(col==='monitoren'&&!id&&!vals.aanwezig)vals.aanwezig='Hele kamp';
   if(col==='kampen'&&!id&&!vals.fietsonderdelen)vals.fietsonderdelen='Automatisch';
   if(!id&&!vals.datum&&SCHEMA[col].fields.some(f=>f.k==='datum')){if(view==='planning'&&selDay)vals.datum=selDay;else if(col==='blog')vals.datum=iso(new Date())}
   const pk=phKey(col);
@@ -1279,7 +1296,7 @@ function openForm(col,id,preset={}){
    ${col==='kampen'?'<p class="hint" style="margin:0">Bij "Automatisch" verschijnen Fietsritten en Fietsen enkel bij een fietsvakantie.</p>':''}
    ${col==='mails'&&sampleFn?'<div class="row" style="align-items:center"><button type="button" class="btn small" id="mailAI">Laat Claude de mail schrijven</button><span class="hint">Vul eerst onderwerp en eventueel een paar steekwoorden in het tekstvak in.</span></div>':''}
    <div class="actions"><div>${id?`<button type="button" class="btn danger" id="shDel">${col==='kampen'?'Verwijder kamp':'Verwijder'}</button>`:''}</div><div style="display:flex;gap:8px"><button type="button" class="btn" id="shC">Annuleer</button><button class="btn primary" id="shS">Bewaar</button></div></div></form></div>`;
-  photoBox();mediaBox();
+  photoBox();mediaBox();syncDagen();
   if(preset._blob&&sampleFn&&col==='boekhouding')readBon(preset._blob);
   const first=$('#sheet input,#sheet select,#sheet textarea');if(first&&!id)first.focus();
 }
@@ -1296,12 +1313,14 @@ function mediaBox(){
 function readForm(){
   const out={};
   for(const f of SCHEMA[form.col].fields){if(f.fiets&&!showFiets())continue;if(f.t==='photo'){out[f.k]=form.ph||null;continue}
+    if(f.t==='days'){out[f.k]=$('#f_aanwezig')?.value==='Enkele dagen'?[...document.querySelectorAll('#f_'+f.k+' input:checked')].map(i=>i.value).sort():[];continue}
     if(f.t==='multi'){out[f.k]=[...document.querySelectorAll('#f_'+f.k+' input:checked')].map(i=>i.value);continue}
     if(f.t==='media'){out[f.k]=form.media||[];continue}
     const el=$('#f_'+f.k);let v=el?el.value.trim():'';
     if(f.t==='num')v=v===''?'':num(v);
     if(f.req&&(v===''||v==null)){el&&el.focus();toast(`Vul "${f.l}" in`);return null}
     out[f.k]=v}
+  if(form.col==='monitoren'&&out.aanwezig==='Enkele dagen'&&kampDagen().length&&!out.dagen.length){toast('Duid aan op welke dagen de monitor meegaat');return null}
   if(form.col==='kalender'&&out.tot&&out.tot<out.datum)out.tot='';
   if(form.col==='deelnemers'){const k=K();const prev=form.id?get('deelnemers',form.id):null;const was=prev&&actief(prev);const st=out.status||'Ingeschreven';
     const others=cur('deelnemers').filter(r=>r.id!==form.id&&actief(r));const max=num(k.maxDeelnemers),maxT=num(k.maxTandems);
@@ -1429,6 +1448,7 @@ document.addEventListener('submit',async e=>{
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
+  if(t.id==='f_aanwezig'){syncDagen();return}
   if(t.id==='kampSel'){if(t.value==='__new'){t.value=curKamp;openForm('kampen');return}setKamp(t.value);render();return}
   if(t.dataset.assign){try{await patchRec(t.dataset.pcol||'deelnemers',t.dataset.assign,{kamer:t.value})}catch(err){toast('Kamer wijzigen lukte niet')}return}
   if((t.id==='scanIn'||t.id==='scanPick')&&t.files[0]){
@@ -1471,6 +1491,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-1716 -->
+<!-- versie 20261125-1920 -->
 </body>
 </html>
