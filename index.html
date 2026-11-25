@@ -299,6 +299,7 @@ table.bal{min-width:520px}
 .bud:focus{border-color:var(--orange);outline:none}
 .catopen{color:var(--fg);cursor:pointer}.catopen:hover{text-decoration-color:var(--orange)}
 .catopen .cnt{font-family:var(--display);font-size:11px;font-weight:700;background:var(--surface2);border-radius:999px;padding:1px 7px;color:var(--muted);text-decoration:none;display:inline-block}
+.photo.need{outline:2px solid var(--red);outline-offset:4px;border-radius:12px}
 .catbons{margin:4px 0 8px}
 .delcat{color:var(--red);text-decoration:none;font-size:16px;margin-left:4px}
 .delcat.armed{font-size:12px}
@@ -669,7 +670,7 @@ const SCHEMA={
     {k:'bedrag',l:'Bedrag (€)',t:'num',req:1},
     {k:'betaaldDoor',l:'Betaald door / ontvangen van'},
     {k:'betaalwijze',l:'Betaalwijze',t:'select',o:['Cash','Bancontact','Overschrijving','Kredietkaart','Voorgeschoten (terug te betalen)']},
-    {k:'bon',l:'Rekening of kasticket',t:'photo',w:1},
+    {k:'bon',l:'Foto of scan van het ticket * (verplicht bij een uitgave)',t:'photo',w:1},
     {k:'notities',l:'Notities',t:'area',w:1}]},
   blog:{one:'blogbericht',fields:[
     {k:'titel',l:'Titel',req:1,w:1},
@@ -1417,6 +1418,7 @@ function readForm(){
   if(form.col==='monitoren'&&out.aanwezig==='Enkele dagen'&&kampDagen().length&&!out.dagen.length){toast('Duid aan op welke dagen de monitor meegaat');return null}
   if(form.col==='leden')out.medicatie=form.meds.filter(m=>String(m.middel||'').trim()).map(m=>{const v={};MED_F.forEach(([k])=>v[k]=String(m[k]||'').trim());return v});
   if(form.col==='deelnemers'||form.col==='leden'){const bad=form.meds.findIndex(m=>!String(m.middel||'').trim()&&MED_F.some(([k])=>String(m[k]||'').trim()));if(bad>=0){toast('Vul de naam van medicijn '+(bad+1)+' in, of verwijder het');const el=$('#md_'+bad+'_middel');if(el)el.focus();return null}}
+  if(form.col==='boekhouding'&&out.soort!=='Inkomst'&&!form.ph){toast('Voeg eerst een foto of scan van het ticket toe');const pb=$('#photoBox');if(pb){pb.classList.add('need');pb.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>pb.classList.remove('need'),2500)}return null}
   if(form.col==='boekhouding'&&out.soort!=='Inkomst'&&!out.categorie)out.categorie=guessCat(out.omschrijving+' '+(out.notities||''));
   if(form.col==='kalender'&&out.tot&&out.tot<out.datum)out.tot='';
   if(form.col==='deelnemers'){const k=K();const prev=form.id?get('deelnemers',form.id):null;const was=prev&&actief(prev);const st=out.status||'Ingeschreven';
@@ -1607,6 +1609,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-2133 -->
+<!-- versie 20261125-2138 -->
 </body>
 </html>
