@@ -139,6 +139,18 @@ button.card:hover{border-color:var(--muted)}
 .day[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .day[aria-pressed="true"] .w{color:var(--bg)}
 .tl{display:flex;flex-direction:column;gap:8px}
+.mdays{display:flex;flex-direction:column;gap:12px}
+.mday{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:10px 12px}
+.mdh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.mslots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:720px){.mslots{grid-template-columns:1fr 1fr}}
+.mcel{border:1px dashed var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.mcel.vol{border-style:solid;border-left:4px solid var(--ok)}
+.mitem{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}.mitem b{overflow-wrap:anywhere}.mitem small{color:var(--muted);font-size:12px}
+.mitem:focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
+.mcel.td{background:color-mix(in srgb,var(--gold) 7%,transparent)}
+.tdmove{display:flex;gap:4px;flex-wrap:wrap}.tdmove .btn{padding:2px 8px;font-size:12px}
+.madd{font-size:13px;color:var(--muted)}
 .dagschema{display:flex;flex-direction:column;gap:10px}
 .blok{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
 .blokh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.blokh h4{margin:0;font-size:16px;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.02em}
@@ -667,7 +679,7 @@ const SCHEMA={
     {k:'notities',l:'Notities',t:'area',w:1}]},
   maaltijden:{one:'maaltijd',fields:[
     {k:'datum',l:'Datum',t:'date',req:1},
-    {k:'moment',l:'Moment',t:'select',o:['Ontbijt','Lunch','Picknick','Vieruurtje','Diner'],req:1},
+    {k:'moment',l:'Moment',t:'select',o:['Ontbijt','Middagmaal','Tussendoortje','Avondmaal','Picknick'],req:1},
     {k:'uur',l:'Uur',t:'time'},{k:'waar',l:'Waar'},
     {k:'menu',l:'Menu',t:'area',w:1},
     {k:'wie',l:'Wie zorgt ervoor'},{k:'aantal',l:'Aantal personen',t:'num'},
@@ -736,7 +748,12 @@ const MENU=[
   ['socials','Socials',[['blog','Blog'],['chat','WhatsApp']]]];
 const TABS=[['overzicht','Start'],...MENU.flatMap(g=>g[2].length?g[2]:[[g[0],g[1]]])];
 let actFilter='';
-const MEAL_TIME={Ontbijt:'08:00',Lunch:'12:30',Picknick:'12:30',Vieruurtje:'16:00',Diner:'19:00'};
+const MEAL_TIME={Ontbijt:'08:00',Middagmaal:'12:30',Lunch:'12:30',Picknick:'12:30',Tussendoortje:'16:00',Vieruurtje:'16:00',Avondmaal:'19:00',Diner:'19:00'};
+const MEAL_SLOTS=['Ontbijt','Middagmaal','Tussendoortje','Avondmaal'];
+const tdPos=d=>{const k=K();const v=k.tussendoor&&k.tussendoor[d];return v!=null&&v!==''?+v:(k.tussendoorStd!=null&&k.tussendoorStd!==''?+k.tussendoorStd:2)};
+const TD_BLOK=['','Voormiddag','Namiddag','Avondactiviteit'],TD_UUR=['','10:00','16:00','20:30'],TD_TXT=['','Na het ontbijt','Na het middagmaal','Na het avondmaal'];
+const slotsVan=d=>{const a=['Ontbijt','Middagmaal','Avondmaal'];a.splice(tdPos(d),0,'Tussendoortje');return a};
+const mealSlot=m=>({Lunch:'Middagmaal',Picknick:'Middagmaal',Vieruurtje:'Tussendoortje',Diner:'Avondmaal'}[m]||(MEAL_SLOTS.includes(m)?m:'Middagmaal'));
 const KCOL=['var(--orange)','var(--gold)','var(--red)','var(--ok)','var(--fg)','var(--muted)'];
 
 /* ---------- toestand ---------- */
@@ -924,12 +941,12 @@ function dayItems(d){
   const it=[];
   cur('ritten').filter(r=>r.datum===d).forEach(r=>it.push({c:'rit',col:'ritten',id:r.id,t:r.vertrek||'',k:'Fietsrit'+(r.niveau?' · '+r.niveau:''),n:r.naam,s:[r.start&&r.aankomst?r.start+' → '+r.aankomst:(r.start||r.aankomst||''),r.km?r.km+' km':'',r.hoogte?r.hoogte+' hm':''].filter(Boolean).join(' · ')}));
   cur('activiteiten').filter(r=>r.datum===d).forEach(r=>it.push({c:'act',col:'activiteiten',id:r.id,b:r.blok,t:r.uur||'',k:'Activiteit'+(r.reservatie?' · '+r.reservatie:''),n:r.naam,s:[r.plaats,(r.begeleiding||[]).length?'Begeleiding: '+(r.begeleiding||[]).map(id=>nameOf('monitoren',id)).filter(Boolean).join(', '):'',r.kost?eur(r.kost)+' p.p.':''].filter(Boolean).join(' · ')}));
-  cur('maaltijden').filter(r=>r.datum===d).forEach(r=>it.push({c:'eet',col:'maaltijden',id:r.id,b:{Ontbijt:'Ontbijt',Lunch:'Middagmaal',Picknick:'Middagmaal',Vieruurtje:'Namiddag',Diner:'Avondmaal'}[r.moment],t:r.uur||MEAL_TIME[r.moment]||'',k:'Maaltijd',n:r.moment+(r.waar?' · '+r.waar:''),s:[r.menu,r.wie?'Zorgt: '+r.wie:''].filter(Boolean).join(' · ')}));
+  cur('maaltijden').filter(r=>r.datum===d).forEach(r=>it.push({c:'eet',col:'maaltijden',id:r.id,b:mealSlot(r.moment)==='Tussendoortje'?TD_BLOK[tdPos(d)]:mealSlot(r.moment),t:r.uur||(mealSlot(r.moment)==='Tussendoortje'?TD_UUR[tdPos(d)]:MEAL_TIME[r.moment])||'',k:'Maaltijd',n:r.moment+(r.waar?' · '+r.waar:''),s:[r.menu,r.wie?'Zorgt: '+r.wie:''].filter(Boolean).join(' · ')}));
   cur('planning').filter(r=>r.datum===d).forEach(r=>it.push({c:'pln',col:'planning',id:r.id,b:r.blok,t:r.van||'',k:'Planning'+(r.tot?' · tot '+r.tot:''),n:r.wat,s:[r.waar,r.wie].filter(Boolean).join(' · ')}));
   data.kalender.filter(r=>r.kamp===curKamp&&r.datum<=d&&(r.tot||r.datum)>=d).forEach(r=>it.push({c:'cal',col:'kalender',id:r.id,t:r.uur||'',k:'Kalender'+(r.soort?' · '+r.soort:''),n:r.titel,s:r.notities||''}));
   return it.sort((a,b)=>(a.t||'99').localeCompare(b.t||'99'));
 }
-const BLOKKEN=[['Ontbijt','07:30','Ontbijt'],['Voormiddag','09:00',''],['Middagmaal','12:00','Lunch'],['Namiddag','13:30',''],['Avondmaal','18:00','Diner'],['Avondactiviteit','19:30','']];
+const BLOKKEN=[['Ontbijt','07:30','Ontbijt'],['Voormiddag','09:00',''],['Middagmaal','12:00','Middagmaal'],['Namiddag','13:30',''],['Avondmaal','18:00','Avondmaal'],['Avondactiviteit','19:30','']];
 const DOUCHE_STD=4;
 function blokVan(i){if(i.b&&BLOKKEN.some(x=>x[0]===i.b))return i.b;const t=i.t||'';if(!t)return '';
   return t<'09:00'?'Ontbijt':t<'12:00'?'Voormiddag':t<'13:30'?'Middagmaal':t<'18:00'?'Namiddag':t<'19:30'?'Avondmaal':'Avondactiviteit'}
@@ -1185,7 +1202,15 @@ activiteiten(){
 },
 maaltijden(){
   const diets=[...cur('deelnemers'),...cur('monitoren')].filter(r=>r.dieet).sort(byName);
-  return header('Maaltijden','maaltijden')+grouped(cur('maaltijden').map(r=>({...r,_t:r.uur||MEAL_TIME[r.moment]||''})),'_t',r=>`<button class="card" data-edit="maaltijden" data-id="${esc(r.id)}"><div class="row"><span class="chip k">${esc(r.moment||'')}</span>${r._t?`<span class="chip">${esc(r._t)}</span>`:''}${r.aantal?`<span class="chip">${esc(r.aantal)} pers.</span>`:''}</div><div class="t">${esc(r.waar||r.moment||'Maaltijd')}</div>${r.menu?`<div class="m">${esc(r.menu)}</div>`:''}<div class="m">${esc([r.wie?'Zorgt: '+r.wie:'',r.notities].filter(Boolean).join(' · '))}</div></button>`,'Nog geen maaltijden','Plan ontbijt, picknick en avondeten per dag.')+
+  const ms=cur('maaltijden');const dagen=[...new Set([...kampDagen(),...ms.filter(r=>r.datum).map(r=>r.datum)])].sort();
+  const st=pd(K().start);const zonder=ms.filter(r=>!r.datum);
+  const cel=(d,slot)=>{const rs=ms.filter(r=>r.datum===d&&mealSlot(r.moment)===slot).sort((a,b)=>(a.uur||MEAL_TIME[a.moment]||'').localeCompare(b.uur||MEAL_TIME[b.moment]||''));
+    const td=slot==='Tussendoortje',p=td?tdPos(d):0;
+    return `<div class="mcel ${rs.length?'vol':''} ${td?'td':''}"><span class="lbl">${slot}</span>${td?`<div class="tdmove"><button class="btn small" data-tdmove="up" data-d="${d}" ${p<=1?'disabled':''} aria-label="Tussendoortje vroeger">◀</button><button class="btn small" data-tdmove="down" data-d="${d}" ${p>=3?'disabled':''} aria-label="Tussendoortje later">▶</button><button class="btn small" data-tdmove="all" data-d="${d}" title="Zet het tussendoortje op deze plek voor elke dag">Elke dag</button></div><small class="hint">${TD_TXT[p]}</small>`:''}${rs.map(r=>`<button class="mitem" data-edit="maaltijden" data-id="${esc(r.id)}"><b>${esc(r.menu?r.menu.split('\\n')[0]:(r.waar||'Maaltijd'))}</b><small>${esc([r.moment!==slot?r.moment:'',r.uur||'',r.waar&&r.menu?r.waar:'',r.wie?'Zorgt: '+r.wie:'',r.aantal?r.aantal+' pers.':''].filter(Boolean).join(' · '))}</small></button>`).join('')}<button class="linkbtn madd" data-new="maaltijden" data-date="${d}" data-moment="${slot}">+ ${rs.length?'nog een':'invullen'}</button></div>`};
+  return header('Maaltijden','maaltijden')+
+  (dagen.length?`<div class="mdays">${dagen.map(d=>{const dd=pd(d);const n=st?Math.round((dd-st)/864e5)+1:null;return `<div class="mday"><div class="mdh"><b>${esc(fdl(d))}</b>${n&&n>0?`<span class="lbl">Dag ${n}</span>`:''}</div><div class="mslots">${slotsVan(d).map(sl=>cel(d,sl)).join('')}</div></div>`}).join('')}</div>`
+   :empty('Nog geen dagen','Stel bij Kamp aanpassen de eerste en laatste dag in; dan verschijnt hier per dag ontbijt, middagmaal, tussendoortje en avondmaal.'))+
+  (zonder.length?`<div class="panel" style="margin-top:14px"><h3>Zonder datum</h3><div class="list">${zonder.map(r=>`<button class="li" style="background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%" data-edit="maaltijden" data-id="${esc(r.id)}"><div class="x"><b>${esc(r.moment||'Maaltijd')}</b><small>${esc([r.waar,r.menu].filter(Boolean).join(' · '))}</small></div></button>`).join('')}</div></div>`:'')+
   (diets.length?`<div class="panel" style="margin-top:18px"><h3>Dieetwensen in de groep</h3><div class="list">${diets.map(r=>`<div class="li"><div class="x"><b>${esc(r.naam)}</b><small>${esc(r.dieet)}</small></div></div>`).join('')}</div></div>`:'');
 },
 ploegen(){
@@ -1533,6 +1558,9 @@ document.addEventListener('click',async e=>{
   if(t.id==='wipeVb'){if(!await armed(t))return;t.disabled=true;for(const c of COLS)for(const r of data[c].filter(x=>x.voorbeeld))await delRec(c,r.id).catch(()=>{});toast('Voorbeelden gewist');return}
   if(t.id==='csv')return exportCsv();
   if(ds.day){selDay=ds.day;render();return}
+  if(ds.tdmove){const k=K();const d=ds.d;if(!k.id||!d)return;const pos=tdPos(d);
+    try{if(ds.tdmove==='all'){await patchRec('kampen',k.id,{tussendoorStd:pos,tussendoor:{}});toast('Tussendoortje staat nu elke dag '+TD_TXT[pos].toLowerCase())}
+      else{const np=Math.max(1,Math.min(3,pos+(ds.tdmove==='up'?-1:1)));await patchRec('kampen',k.id,{tussendoor:{...(k.tussendoor||{}),[d]:np}})}}catch(err){toast('Verplaatsen lukte niet')}return}
   if(ds.douche){const k=K();if(!k.id||!selDay)return;const pos=douchePos(selDay);
     try{if(ds.douche==='all'){await patchRec('kampen',k.id,{doucheStd:pos,douche:{}});toast('Douchemoment staat nu elke dag op deze plek')}
       else{const np=Math.max(0,Math.min(BLOKKEN.length,pos+(ds.douche==='up'?-1:1)));await patchRec('kampen',k.id,{douche:{...(k.douche||{}),[selDay]:np}})}}catch(err){toast('Verplaatsen lukte niet')}return}
@@ -1671,6 +1699,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-2143 -->
+<!-- versie 20261125-2204 -->
 </body>
 </html>
