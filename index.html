@@ -456,6 +456,10 @@ nav.tabs a.hometab{font-size:13.5px;padding:8px 14px}
 .fld input,.fld select,.fld textarea{border-radius:12px;background:var(--surface)}
 .sheet{background:var(--bg)}
 .toast{border-radius:12px;font-family:var(--display);font-weight:600;font-size:14px}
+/* capaciteit */
+.capbar{margin-bottom:12px}
+.linkchip{border:1px dashed var(--line);background:transparent;cursor:pointer;color:var(--orange)}
+.card.inactief{opacity:.7}
 /* contacten */
 .ccard .telnr{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.01em;user-select:all;color:var(--fg)}
 .ccard.vast{border-left:4px solid var(--teal)}
@@ -484,6 +488,10 @@ nav.tabs a.hometab{font-size:13.5px;padding:8px 14px}
 <script>
 "use strict";
 /* ---------- schema ---------- */
+const FIETSTYPES=['Gewone fiets','Driewieler','Duofiets','Tandem'];
+const actief=r=>!r.status||r.status==='Ingeschreven';
+function capInfo(){const k=K();const dl=cur('deelnemers').filter(actief);const max=num(k.maxDeelnemers),maxT=num(k.maxTandems);const tnd=dl.filter(r=>r.fietstype==='Tandem').length;
+  return {n:dl.length,max,vol:!!max&&dl.length>=max,vrij:max?Math.max(0,max-dl.length):null,t:tnd,maxT,tVol:!!maxT&&tnd>=maxT,wacht:cur('deelnemers').filter(r=>r.status==='Wachtlijst').length}}
 const KAMP_TYPES=['Fietsvakantie','Sportkamp','Zeekamp','Skikamp','Wandelkamp','Avonturenkamp','Dagkamp','Andere'];
 const CAT_GROUPS=['Vaste kosten','Variabele kosten','Opbrengsten'];
 const DEF_CATS=[['Huur kampplaats','Vaste kosten'],['Eten','Vaste kosten'],['Vervoer','Vaste kosten'],['Vergoeding monitoren','Vaste kosten'],
@@ -500,7 +508,7 @@ const SCHEMA={
     {k:'fietsonderdelen',l:'Fietsritten en fietsen tonen',t:'select',o:['Automatisch','Ja','Nee']},
     {k:'start',l:'Eerste dag',t:'date'},{k:'eind',l:'Laatste dag',t:'date'},
     {k:'bestemming',l:'Bestemming / regio',w:1},
-    {k:'bijdrage',l:'Prijs kamp per deelnemer (€)',t:'num'},{k:'budget',l:'Budget uitgaven (€)',t:'num'},
+    {k:'bijdrage',l:'Prijs kamp per deelnemer (€)',t:'num'},{k:'maxDeelnemers',l:'Maximum aantal deelnemers',t:'num'},{k:'maxTandems',l:'Maximum aantal tandems (fietskamp)',t:'num'},{k:'budget',l:'Budget uitgaven (€)',t:'num'},
     {k:'verantwoordelijke',l:'Hoofdverantwoordelijke'},{k:'noodnummer',l:'Noodnummer begeleiding',t:'tel'},
     {k:'notities',l:'Algemene info',t:'area',w:1}]},
   kalender:{one:'datum',global:1,fields:[
@@ -517,6 +525,8 @@ const SCHEMA={
     {k:'geboortedatum',l:'Geboortedatum',t:'date'},
     {k:'kamer',l:'Kamer',t:'ref',ref:'kamers'},
     {k:'betaald',l:'Prijs kamp betaald (€)',t:'num'},
+    {k:'status',l:'Inschrijving',t:'select',o:['Ingeschreven','Wachtlijst','Geannuleerd']},
+    {k:'fietstype',l:'Fiets',t:'select',o:FIETSTYPES,fiets:1},
     {k:'noodcontact',l:'Noodcontact (naam + nummer)',w:1},
     {k:'dieet',l:'Dieet / allergieën',w:1},
     {k:'notities',l:'Notities',t:'area',w:1}]},
@@ -846,7 +856,7 @@ function money(){
   const bk=cur('boekhouding');
   const uit=bk.filter(r=>r.soort!=='Inkomst').reduce((s,r)=>s+num(r.bedrag),0);
   const inn=bk.filter(r=>r.soort==='Inkomst').reduce((s,r)=>s+num(r.bedrag),0);
-  const dl=cur('deelnemers');const bijdr=dl.reduce((s,r)=>s+num(r.betaald),0);
+  const dl=cur('deelnemers').filter(actief);const bijdr=dl.reduce((s,r)=>s+num(r.betaald),0);
   const verwacht=num(K().bijdrage)*dl.length;
   return {uit,inn,bijdr,verwacht,nDeel:dl.length,saldo:bijdr+inn-uit};
 }
@@ -894,7 +904,7 @@ overzicht(days){
   const ks=[...data.kampen].sort((a,b)=>{const r=x=>x.start&&x.start<=today&&(x.eind||x.start)>=today?0:(x.start||'')>=today?1:2;return r(a)-r(b)||(r(a)===2?(b.start||'').localeCompare(a.start||''):(a.start||'9').localeCompare(b.start||'9'))});
   const status=x=>{if(!x.start)return ['Geen data',''];const e=x.eind||x.start;if(x.start<=today&&e>=today)return ['Bezig','k'];if(x.start>today){const n=Math.round((pd(x.start)-pd(today))/864e5);return ['Nog '+n+(n===1?' dag':' dagen'),'o']}return ['Afgelopen','']};
   return `<section class="welcome"><div class="lbl">Welkom</div><h2>Kies je kamp</h2><p class="hint" style="margin:0;max-width:60ch">Fietsvakantie, sportkamp, zeekamp of iets anders: kies hieronder een kamp en open daarna het onderdeel dat je nodig hebt.</p></section>
-  <div class="kgrid">${ks.map(x=>{const [st,c]=status(x);return `<button class="kcard ${x.id===curKamp?'sel':''}" data-gokamp="${esc(x.id)}" aria-pressed="${x.id===curKamp}"><span class="row"><i class="kdot" style="background:${kampColor(x.id)}"></i><span class="chip">${esc(x.type||'Kamp')}</span>${c?`<span class="chip ${c}">${esc(st)}</span>`:`<span class="chip">${esc(st)}</span>`}</span><span class="t">${esc(x.naam)}</span><span class="m">${esc([x.start?fd(x.start)+(x.eind&&x.eind!==x.start?' – '+fd(x.eind):'')+' '+pd(x.start).getFullYear():'',x.bestemming].filter(Boolean).join(' · '))}</span><span class="m num">${data.deelnemers.filter(p=>p.kamp===x.id).length} deelnemers · ${data.monitoren.filter(p=>p.kamp===x.id).length} monitoren</span></button>`}).join('')}
+  <div class="kgrid">${ks.map(x=>{const [st,c]=status(x);return `<button class="kcard ${x.id===curKamp?'sel':''}" data-gokamp="${esc(x.id)}" aria-pressed="${x.id===curKamp}"><span class="row"><i class="kdot" style="background:${kampColor(x.id)}"></i><span class="chip">${esc(x.type||'Kamp')}</span>${c?`<span class="chip ${c}">${esc(st)}</span>`:`<span class="chip">${esc(st)}</span>`}</span><span class="t">${esc(x.naam)}</span><span class="m">${esc([x.start?fd(x.start)+(x.eind&&x.eind!==x.start?' – '+fd(x.eind):'')+' '+pd(x.start).getFullYear():'',x.bestemming].filter(Boolean).join(' · '))}</span><span class="m num">${data.deelnemers.filter(p=>p.kamp===x.id&&actief(p)).length}${num(x.maxDeelnemers)?' / '+num(x.maxDeelnemers):''} deelnemers · ${data.monitoren.filter(p=>p.kamp===x.id).length} monitoren</span></button>`}).join('')}
   <button class="kcard new" data-new="kampen"><span class="t">+ Nieuw kamp</span><span class="m">Fietsvakantie, sportkamp, zeekamp…</span></button></div>`+(K().id?tiles()+VIEWS.dash(days):'')+backupPanel();
 },
 dash(days){
@@ -953,19 +963,21 @@ kalender(){
   <div class="panel" style="margin-top:14px"><h3>Komende datums</h3>${up.length?`<div class="list">${up.map(u=>`<button class="li" style="background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%" data-edit="${u.col}" data-id="${esc(u.id)}"><span class="tm" style="width:70px">${esc(fd(u.d))}</span><div class="x">${esc(u.t)}<small>${esc(u.s)}</small></div></button>`).join('')}</div>`:`<p class="hint">Nog geen komende datums.</p>`}</div>`;
 },
 deelnemers(){
-  const ql=q.toLowerCase();const all=cur('deelnemers');
-  const list=all.sort(byName).filter(r=>!ql||JSON.stringify(r).toLowerCase().includes(ql));
-  const m=money();const k=K();const fiets=showFiets();
-  return header('Deelnemers <em>'+all.length+'</em>','deelnemers',`<input class="search" id="q" type="search" placeholder="Zoek op naam, kamer, dieet…" value="${esc(q)}">`)+
+  const ql=q.toLowerCase();const all=cur('deelnemers');const m=money();const k=K();const fiets=showFiets();const c=capInfo();
+  const match=r=>!ql||JSON.stringify(r).toLowerCase().includes(ql);
+  const card=r=>{const meds=data.medicatie.filter(x=>x.deelnemer===r.id).length;const kamer=nameOf('kamers',r.kamer);const fs=fiets?data.fietsen.filter(f=>f.deelnemer===r.id):[];const open=k.bijdrage?num(k.bijdrage)-num(r.betaald):0;
+    return `<button class="card ${actief(r)?'':'inactief'}" data-edit="deelnemers" data-id="${esc(r.id)}"><div class="t">${esc(r.naam)}</div>
+    <div class="row">${r.status&&r.status!=='Ingeschreven'?`<span class="chip ${r.status==='Wachtlijst'?'g':'r'}">${esc(r.status)}</span>`:''}${fiets&&r.fietstype?`<span class="chip o">🚲 ${esc(r.fietstype)}</span>`:''}<span class="chip">${kamer?'Kamer '+esc(kamer):'Geen kamer'}</span>${fiets?fs.filter(f=>f.staat&&f.staat!=='In orde').map(f=>`<span class="chip ${f.staat==='Herstel nodig'?'r':'g'}">Fiets: ${esc(f.staat)}</span>`).join(''):''}${meds?`<span class="chip r">${meds} medicatie</span>`:''}${r.dieet?`<span class="chip g">Dieet</span>`:''}${k.bijdrage&&actief(r)?(open>0?`<span class="chip g">Nog ${esc(eur(open))}</span>`:'<span class="chip k">Betaald</span>'):''}</div>
+    <div class="m">${esc([r.gsm,r.noodcontact?'Nood: '+r.noodcontact:''].filter(Boolean).join(' · '))}</div>${r.dieet?`<div class="m">${esc(r.dieet)}</div>`:''}</button>`};
+  const typeChips=fiets?FIETSTYPES.map(tp=>{const n=all.filter(r=>actief(r)&&r.fietstype===tp).length;const isT=tp==='Tandem'&&c.maxT;return n||isT?`<span class="chip ${isT&&c.tVol?'r':''}">${esc(tp)}: ${n}${isT?' / '+c.maxT:''}</span>`:''}).join('')+(all.some(r=>actief(r)&&!r.fietstype)?`<span class="chip g">Fiets nog kiezen: ${all.filter(r=>actief(r)&&!r.fietstype).length}</span>`:''):'';
+  const groups=[['Ingeschreven',all.filter(actief)],['Wachtlijst',all.filter(r=>r.status==='Wachtlijst')],['Geannuleerd',all.filter(r=>r.status==='Geannuleerd')]];
+  const shown=groups.map(([g,rs])=>[g,rs.filter(match).sort(byName)]).filter(([g,rs])=>rs.length);
+  return header('Deelnemers <em>'+c.n+(c.max?' / '+c.max:'')+'</em>','deelnemers',`<input class="search" id="q" type="search" placeholder="Zoek op naam, kamer, dieet…" value="${esc(q)}">`)+
   (all.length?'':copyBar('deelnemers'))+
+  `<div class="row capbar">${c.max?`<span class="chip ${c.vol?'r':'k'}">${c.vol?'Volzet':'Nog '+c.vrij+' plaatsen vrij'}</span>`:`<button class="chip linkchip" data-edit="kampen" data-id="${esc(k.id)}">Maximum instellen</button>`}${c.wacht?`<span class="chip g">${c.wacht} op wachtlijst</span>`:''}${typeChips}</div>`+
   (k.bijdrage?`<p class="hint">Prijs kamp ontvangen: <b class="num">${eur(m.bijdr)}</b> van <span class="num">${eur(m.verwacht)}</span> (${m.nDeel} × ${eur(k.bijdrage)}).</p>`:'')+
-  (list.length?`<div class="grid">${list.map(r=>{const meds=data.medicatie.filter(x=>x.deelnemer===r.id).length;const kamer=nameOf('kamers',r.kamer);
-    const fs=fiets?data.fietsen.filter(f=>f.deelnemer===r.id):[];
-    const open=k.bijdrage?num(k.bijdrage)-num(r.betaald):0;
-    return `<button class="card" data-edit="deelnemers" data-id="${esc(r.id)}"><div class="t">${esc(r.naam)}</div>
-    <div class="row"><span class="chip">${kamer?'Kamer '+esc(kamer):'Geen kamer'}</span>${fiets?(fs.length?fs.map(f=>`<span class="chip ${f.staat==='Herstel nodig'?'r':f.staat==='Nakijken'?'g':''}">🚲 ${esc(f.type||'Fiets')}</span>`).join(''):'<span class="chip g">Geen fiets</span>'):''}${meds?`<span class="chip r">${meds} medicatie</span>`:''}${r.dieet?`<span class="chip g">Dieet</span>`:''}${k.bijdrage?(open>0?`<span class="chip g">Nog ${esc(eur(open))}</span>`:'<span class="chip k">Betaald</span>'):''}</div>
-    <div class="m">${esc([r.gsm,r.noodcontact?'Nood: '+r.noodcontact:''].filter(Boolean).join(' · '))}</div>${r.dieet?`<div class="m">${esc(r.dieet)}</div>`:''}</button>`}).join('')}</div>`
-  :empty(q?'Niemand gevonden':'Nog geen deelnemers',q?'Probeer een andere zoekterm.':'Voeg de eerste deelnemer toe met de oranje knop.'));
+  (shown.length?shown.map(([g,rs])=>`<div class="group"${g==='Ingeschreven'?' style="margin-top:6px"':''}><span class="lbl">${g} · ${rs.length}</span><div class="grid">${rs.map(card).join('')}</div></div>`).join('')
+  :empty(q?'Niemand gevonden':'Nog geen deelnemers',q?'Probeer een andere zoekterm.':'Voeg de eerste deelnemer toe met de rode knop.'));
 },
 monitoren(){
   const list=cur('monitoren').sort(byName);
@@ -1175,7 +1187,7 @@ function tiles(){
   const k=K();const today=iso(new Date());const m=money();
   const info={
     kalender:[data.kalender.filter(r=>(r.tot||r.datum)>=today).length,'komende datums'],
-    deelnemers:[cur('deelnemers').length,k.bijdrage?cur('deelnemers').filter(r=>num(r.betaald)<num(k.bijdrage)).length+' nog te betalen':'ingeschreven'],
+    deelnemers:[cur('deelnemers').filter(actief).length+(num(k.maxDeelnemers)?'/'+num(k.maxDeelnemers):''),k.bijdrage?cur('deelnemers').filter(r=>num(r.betaald)<num(k.bijdrage)).length+' nog te betalen':'ingeschreven'],
     monitoren:[cur('monitoren').length,cur('monitoren').filter(r=>r.ehbo==='Ja').length+' met EHBO'],
     kamers:[cur('kamers').length,[...cur('deelnemers'),...cur('monitoren')].filter(p=>!p.kamer||!get('kamers',p.kamer)).length+' zonder kamer'],
     locaties:[cur('locaties').length,cur('locaties')[0]?.naam||'verblijf'],
@@ -1193,7 +1205,7 @@ function tiles(){
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
     chat:[cur('berichten').length,cur('groepen').length+' groepen'],
   };
-  const head={deelnemers:cur('deelnemers').length+' deelnemers',monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:cur('blog').length+' blogberichten · '+cur('groepen').length+' groepen'};
+  const ci=capInfo();const head={deelnemers:ci.n+(ci.max?' / '+ci.max:'')+' deelnemers'+(ci.vol?' · volzet':'')+(ci.wacht?' · '+ci.wacht+' op wachtlijst':''),monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:cur('blog').length+' blogberichten · '+cur('groepen').length+' groepen'};
   return `<div class="mains" aria-label="Hoofdmenu">${MENU.map(g=>{const subs=g[2].filter(s=>!s[2]||showFiets());const first=(subs[0]||[g[0]])[0];
     return `<div class="main m-${g[0]}"><a class="mainhead" href="#${first}"><span class="micon">${ico(g[0])}</span><span class="n">${esc(g[1])}</span><span class="c">${esc(head[g[0]]||'')}</span><span class="arrow" aria-hidden="true">›</span></a>${subs.length>1?`<div class="mainsubs">${subs.map(([id,l])=>`<a href="#${id}"><span>${esc(l)}</span><b class="num">${esc(info[id]?.[0]??'')}</b></a>`).join('')}</div>`:''}</div>`}).join('')}</div>`;
 }
@@ -1254,6 +1266,7 @@ function openForm(col,id,preset={}){
   if(!id&&SCOPED.includes(col)&&!K().id){toast('Maak of kies eerst een kamp');col='kampen';}
   const vals={...preset,...(r||{})};
   if(col==='boekhouding'&&!vals.soort)vals.soort='Uitgave';
+  if(col==='deelnemers'&&!id&&!vals.status)vals.status=capInfo().vol?'Wachtlijst':'Ingeschreven';
   if((col==='kalender'||col==='contacten')&&!id&&!('kamp' in preset))vals.kamp=curKamp;
   if(col==='kampen'&&!id&&!vals.fietsonderdelen)vals.fietsonderdelen='Automatisch';
   if(!id&&!vals.datum&&SCHEMA[col].fields.some(f=>f.k==='datum')){if(view==='planning'&&selDay)vals.datum=selDay;else if(col==='blog')vals.datum=iso(new Date())}
@@ -1261,7 +1274,7 @@ function openForm(col,id,preset={}){
   form={col,id,ph:pk?(vals[pk]||null):null,removed:[],blob:preset._blob||null,uploadedNew:!!preset._blob,media:Array.isArray(vals.media)?[...vals.media]:[],newMedia:[]};
   $('#layer').innerHTML=`<div class="veil" id="veil"><form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" novalidate>
    <div class="bar2"><h3 id="shT">${(id?'Wijzig ':'Nieuw'+(['planningsitem','blogbericht','kamp'].includes(sc.one)?' ':'e '))+esc(sc.one)}</h3><button type="button" class="btn small" id="shX" aria-label="Sluiten">Sluit</button></div>
-   <div class="fields">${sc.fields.map(f=>fieldHTML(f,vals[f.k]??'')).join('')}</div>
+   <div class="fields">${sc.fields.filter(f=>!f.fiets||showFiets()).map(f=>fieldHTML(f,vals[f.k]??'')).join('')}</div>${col==='deelnemers'?capNote(id):''}
    ${col==='kampen'?'<p class="hint" style="margin:0">Bij "Automatisch" verschijnen Fietsritten en Fietsen enkel bij een fietsvakantie.</p>':''}
    ${col==='mails'&&sampleFn?'<div class="row" style="align-items:center"><button type="button" class="btn small" id="mailAI">Laat Claude de mail schrijven</button><span class="hint">Vul eerst onderwerp en eventueel een paar steekwoorden in het tekstvak in.</span></div>':''}
    <div class="actions"><div>${id?`<button type="button" class="btn danger" id="shDel">${col==='kampen'?'Verwijder kamp':'Verwijder'}</button>`:''}</div><div style="display:flex;gap:8px"><button type="button" class="btn" id="shC">Annuleer</button><button class="btn primary" id="shS">Bewaar</button></div></div></form></div>`;
@@ -1269,6 +1282,10 @@ function openForm(col,id,preset={}){
   if(preset._blob&&sampleFn&&col==='boekhouding')readBon(preset._blob);
   const first=$('#sheet input,#sheet select,#sheet textarea');if(first&&!id)first.focus();
 }
+function capNote(id){const c=capInfo();const prev=id?get('deelnemers',id):null;const parts=[];
+  if(c.max)parts.push(c.vol&&!(prev&&actief(prev))?`<b class="neg">Volzet</b> (${c.n} / ${c.max}): nieuwe inschrijvingen komen op de wachtlijst.`:`Nog <b>${c.vrij}</b> van ${c.max} plaatsen vrij.`);
+  if(showFiets()&&c.maxT)parts.push(`Tandems: <b>${c.t} / ${c.maxT}</b>${c.tVol?' (alle tandems toegekend)':''}.`);
+  return parts.length?`<p class="hint capnote" style="margin:0">${parts.join(' ')}</p>`:''}
 function closeForm(){if(form&&form.uploadedNew&&!form.saved&&form.ph)delMedia(form.ph);if(form&&!form.saved)(form.newMedia||[]).forEach(delMedia);form=null;$('#layer').innerHTML=''}
 function mediaBox(){
   const b=$('#mediaBox');if(!b||!form)return;const canUp=mode==='lokaal'||!!assets;
@@ -1277,7 +1294,7 @@ function mediaBox(){
 }
 function readForm(){
   const out={};
-  for(const f of SCHEMA[form.col].fields){if(f.t==='photo'){out[f.k]=form.ph||null;continue}
+  for(const f of SCHEMA[form.col].fields){if(f.fiets&&!showFiets())continue;if(f.t==='photo'){out[f.k]=form.ph||null;continue}
     if(f.t==='multi'){out[f.k]=[...document.querySelectorAll('#f_'+f.k+' input:checked')].map(i=>i.value);continue}
     if(f.t==='media'){out[f.k]=form.media||[];continue}
     const el=$('#f_'+f.k);let v=el?el.value.trim():'';
@@ -1285,6 +1302,10 @@ function readForm(){
     if(f.req&&(v===''||v==null)){el&&el.focus();toast(`Vul "${f.l}" in`);return null}
     out[f.k]=v}
   if(form.col==='kalender'&&out.tot&&out.tot<out.datum)out.tot='';
+  if(form.col==='deelnemers'){const k=K();const prev=form.id?get('deelnemers',form.id):null;const was=prev&&actief(prev);const st=out.status||'Ingeschreven';
+    const others=cur('deelnemers').filter(r=>r.id!==form.id&&actief(r));const max=num(k.maxDeelnemers),maxT=num(k.maxTandems);
+    if(st==='Ingeschreven'&&!was&&max&&others.length>=max){toast('Volzet: '+max+' deelnemers. Zet deze inschrijving op Wachtlijst of verhoog het maximum bij Kamp aanpassen.');const s=$('#f_status');if(s)s.focus();return null}
+    if(st==='Ingeschreven'&&showFiets()&&out.fietstype==='Tandem'&&!(was&&prev.fietstype==='Tandem')&&maxT&&others.filter(r=>r.fietstype==='Tandem').length>=maxT){toast('Alle '+maxT+' tandems zijn al toegekend. Kies een andere fiets of verhoog het maximum.');const s=$('#f_fietstype');if(s)s.focus();return null}}
   if(form.col==='kampen'&&out.eind&&out.start&&out.eind<out.start){toast('De laatste dag ligt voor de eerste dag');return null}
   return out;
 }
@@ -1449,6 +1470,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-1652 -->
+<!-- versie 20261125-1710 -->
 </body>
 </html>
