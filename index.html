@@ -863,6 +863,12 @@ async function boot(){
 }
 
 /* ---------- navigatie ---------- */
+// importlink: #importeer=Naam|Naam|… (blijft op het toestel: alles na # wordt niet naar de server gestuurd)
+let pendingImport=null;
+(()=>{const m=location.hash.match(/^#importeer=(.*)$/);if(!m)return;try{pendingImport=decodeURIComponent(m[1]).split('|').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean)}catch(e){}history.replaceState(null,'',location.pathname+location.search+'#leden')})();
+async function addLeden(names){const have=new Set(data.leden.map(l=>normN(l.naam)));let n=0,dub=0;
+  for(const nm of names){if(have.has(normN(nm))){dub++;continue}have.add(normN(nm));await saveRec('leden',null,{naam:nm});n++}
+  toast(n+' toegevoegd'+(dub?' · '+dub+' stonden er al':''))}
 function route(){const h=location.hash.slice(1);view=TABS.some(t=>t[0]===h)?h:'overzicht';render();window.scrollTo(0,0)}
 window.addEventListener('hashchange',route);
 
@@ -1125,7 +1131,7 @@ leden(){
   const card=l=>`<div class="card lid"><button class="lidnaam" data-edit="leden" data-id="${esc(l.id)}"><span class="t">${esc(l.naam)}</span><span class="m">${esc([l.gsm,l.fietstype,l.dieet?'Dieet: '+l.dieet:''].filter(Boolean).join(' · ')||'Tik om gegevens aan te vullen')}</span></button>
     <div class="row">${ks.length?ks.map(k=>{const d=lidIn(l,k.id);return d?`<span class="chip k" title="${esc(d.status||'Ingeschreven')}">✓ ${esc(k.naam)}${d.status&&d.status!=='Ingeschreven'?' · '+esc(d.status):''}</span>`:`<button class="btn small ${k.id===curKamp?'primary':''}" data-lidnaar="${esc(k.id)}" data-lid="${esc(l.id)}">+ ${esc(k.naam)}</button>`}).join(''):'<span class="hint">Maak eerst een kamp aan.</span>'}</div></div>`;
   return header('Algemene lijst <em>'+all.length+'</em>','leden',`<input class="search" id="q" type="search" placeholder="Zoek een naam…" value="${esc(q)}">`)+
-  `<p class="hint">Iedereen die ooit meeging, los van een kamp. Eén klik op <b>+ kampnaam</b> zet iemand in dat kamp (bij een volzet kamp op de wachtlijst).</p>`+ledenTools()+
+  `<p class="hint">Iedereen die ooit meeging, los van een kamp. Eén klik op <b>+ kampnaam</b> zet iemand in dat kamp (bij een volzet kamp op de wachtlijst).</p>`+(pendingImport&&pendingImport.length?`<div class="banner"><p><b>${pendingImport.length} namen</b> klaar om toe te voegen: ${esc(pendingImport.slice(0,4).join(', '))}${pendingImport.length>4?'…':''}</p><button class="btn small primary" data-importok="1">Voeg toe</button><button class="btn small" data-importno="1">Annuleer</button></div>`:'')+ledenTools()+
   (list.length?`<div class="grid">${list.map(card).join('')}</div>`:empty(q?'Niemand gevonden':'De lijst is nog leeg',q?'Probeer een andere zoekterm.':'Voeg mensen toe met de rode knop of plak hierboven een lijst met namen.'));
 },
 medicatie(){
@@ -1428,6 +1434,8 @@ async function armed(t,label){if(!t.classList.contains('armed')){t.classList.add
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,[data-cal]');if(!t||t.closest('a'))return;
   const ds=t.dataset;
+  if(ds.importok&&pendingImport){t.disabled=true;const ns=pendingImport;pendingImport=null;await addLeden(ns);render();return}
+  if(ds.importno){pendingImport=null;render();return}
   if(ds.lidnaar){t.disabled=true;try{await lidNaarKamp(ds.lid,ds.lidnaar)}catch(err){toast('Toevoegen lukte niet')}t.disabled=false;render();return}
   if(ds.ledenpaste){const ta=$('#ledenPaste');const have=new Set(data.leden.map(l=>normN(l.naam)));let n=0,dub=0;t.disabled=true;
     for(let line of (ta?ta.value:'').split(/\r?\n/)){line=line.split('\t').map(x=>x.trim()).filter(x=>x&&!/^(bevestigd|geannuleerd|ingeschreven|wachtlijst)$/i.test(x)).slice(0,2).join(' ').replace(/\s+/g,' ').trim();
@@ -1571,6 +1579,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261125-2122 -->
+<!-- versie 20261125-2126 -->
 </body>
 </html>
