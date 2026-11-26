@@ -387,6 +387,8 @@ table.bal{min-width:520px}
 .letter .lkop{font-size:11px;text-align:right;line-height:1.4}
 .letter p{margin:0 0 12px;text-align:justify}
 .letter ul{margin:0 0 12px;padding-left:22px}
+.mailrij{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mailrij.klaar{opacity:.65}.mailrij .vink{color:var(--ok)}
 .lwrap{display:flex;flex-direction:column;gap:16px}
 .fiche .ftitel{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:.04em;color:#da002f;text-transform:uppercase;margin:-6px 0 6px}
 .fiche .fintro{font-size:12px}
@@ -1099,7 +1101,7 @@ const BRIEF_ADRES='S-Sport vzw\nSint-Jansstraat 32-38\n1000 Brussel';
 const BRIEF_VELDEN=[
   ['contact','Contactpersoon'],['tel','Telefoon contactpersoon','tel'],['email','E-mail contactpersoon','email'],['adres','Contactadres','area'],
   ['locatie','Locatie','loc'],['startuur','Aankomstuur eerste dag','time'],['einduur','Einduur laatste dag','time'],
-  ['nood','Noodcontact tijdens het kamp (naam + nummer)'],['medicatie','Medicatie afgeven aan'],['onderteken','Ondertekening']];
+  ['nood','Noodcontact tijdens het kamp (naam + nummer)'],['medicatie','Medicatie afgeven aan'],['onderteken','Ondertekening'],['onderwerp','Onderwerp van de mail']];
 const PLAATSH=['voornaam','naam','kamp','locatie','adres','startdag','startuur','einddag','einduur','noodcontact','medicatie','ondertekening','prijs','groep','kamer'];
 let briefSel=null,briefAlg=false;
 const voornaam=n=>String(n||'').trim().split(/\s+/)[0]||'';
@@ -1110,7 +1112,7 @@ function briefStd(){
   const ehbo=mons.find(m=>m.functie==='EHBO')||mons.find(m=>m.functie==='Hoofdmonitor');
   return {contact:k.verantwoordelijke||'',tel:k.noodnummer||'',email:'',adres:BRIEF_ADRES,startuur:'',einduur:'',
     nood:[k.verantwoordelijke,k.noodnummer].filter(Boolean).join(' '),medicatie:ehbo?voornaam(ehbo.naam):'',
-    onderteken:opsom(mons.filter(m=>!deelsMee(m)).map(m=>voornaam(m.naam)).filter(Boolean)),tekst:BRIEF_TEKST,paklijst:BRIEF_PAK,locatie:''}
+    onderteken:opsom(mons.filter(m=>!deelsMee(m)).map(m=>voornaam(m.naam)).filter(Boolean)),tekst:BRIEF_TEKST,paklijst:BRIEF_PAK,locatie:'',onderwerp:'{kamp}: info en uitnodiging'}
 }
 function briefCfg(){const s=briefStd(),b=K().brief||{};const o={};for(const k of Object.keys(s))o[k]=(b[k]!==undefined&&b[k]!=='')?b[k]:s[k];return o}
 function briefVals(p){
@@ -1220,12 +1222,25 @@ function maakDocx(models){
     ['word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/></Relationships>'],
     ['word/document.xml',doc],['word/media/logo.png',png]]);
 }
-async function briefDownload(){
-  const ps=briefGekozen();if(!ps.length){toast('Kies eerst minstens één deelnemer');return}
+async function briefDownload(lijst){
+  const ps=lijst||briefGekozen();if(!ps.length){toast('Kies eerst minstens één deelnemer');return}
   const blob=maakDocx(ps.flatMap(p=>[briefModel(p),...(ficheAan()?[{fiche:ficheModel(p)}]:[])]));
   const fn=('Brief '+(K().naam||'kamp')+(ps.length===1&&ps[0]?' - '+ps[0].naam:'')).replace(/[\\/:*?"<>|]/g,'')+'.docx';
   if(downloads){try{await downloads.save({filename:fn,data:blob})}catch(e){if(e&&e.code==='declined')return;toast('Downloaden lukte niet');return}}else saveFile(fn,blob);
   setTimeout(()=>toast(fn+' staat in je map Downloads'),300);
+}
+/* mailen: per deelnemer een eigen mail met de juiste naam naar het juiste adres */
+const briefGemaild=()=>(K().brief||{}).gemaild||{};
+const briefOnderwerp=p=>vulIn((K().brief||{}).onderwerp||'{kamp}: info en uitnodiging',briefVals(p)).replace(/[\u0001\u0002]/g,'');
+function briefMailBody(p){const m=briefModel(p);return briefTekst(m)+(ficheAan()?'\n\nIn bijlage vind je deze brief en de medicatiefiche. Vul de fiche in en geef ze bij aankomst af samen met de medicatie.':'')}
+const briefMailto=p=>`mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(briefOnderwerp(p))}&body=${encodeURIComponent(briefMailBody(p))}`;
+function briefMailPanel(kies){
+  const ps=kies.filter(Boolean);if(!ps.length)return '';const gm=briefGemaild();
+  const met=ps.filter(p=>p.email),klaar=met.filter(p=>gm[p.id]).length;const volgende=met.find(p=>!gm[p.id]);
+  return `<div class="panel mailpanel" style="margin-bottom:14px"><div class="head" style="margin:0 0 6px"><h3 style="margin:0;flex:1">Mailen <span class="lbl">${klaar} / ${met.length} verstuurd</span></h3>${klaar?'<button class="btn small" data-briefwis="1">Wis vinkjes</button>':''}</div>
+   <p class="hint" style="margin-top:0">Elke deelnemer krijgt een eigen mail met zijn of haar naam, naar het eigen e-mailadres. <b>Mail</b> opent die mail in je mailprogramma: kijk na en druk op versturen.${ficheAan()?' Een bijlage kan de app niet zelf toevoegen: klik eerst op <b>Bijlage</b> (brief + medicatiefiche van die persoon) en sleep het bestand in de mail.':''}</p>
+   ${volgende?`<div class="row" style="margin-bottom:8px">${ficheAan()?`<button class="btn small" data-briefbijlage="${esc(volgende.id)}">Bijlage ${esc(voornaam(volgende.naam))}</button>`:''}<a class="btn small primary" href="${esc(briefMailto(volgende))}" target="_blank" rel="noopener" data-briefmail="${esc(volgende.id)}">Volgende mail: ${esc(volgende.naam)}</a></div>`:(met.length?'<p class="hint">Iedereen met een e-mailadres is gemaild.</p>':'')}
+   <div class="list" style="gap:2px">${ps.map(p=>`<div class="bed mailrij${p.email&&gm[p.id]?' klaar':''}"><span>${p.email&&gm[p.id]?'<b class="vink">✓</b> ':''}${pTag(p)}${esc(p.naam)} <span class="hint" style="margin:0">${p.email?esc(p.email):'geen e-mailadres'}</span></span><span class="row" style="gap:4px;flex-wrap:nowrap">${p.email?`${ficheAan()?`<button class="btn small" data-briefbijlage="${esc(p.id)}">Bijlage</button>`:''}<a class="btn small" href="${esc(briefMailto(p))}" target="_blank" rel="noopener" data-briefmail="${esc(p.id)}">Mail</a>`:`<button class="btn small" data-edit="deelnemers" data-id="${esc(p.id)}">E-mail invullen</button>`}</span></div>`).join('')}</div></div>`;
 }
 function briefVeld([k,l,t]){
   const c=briefCfg(),s=briefStd(),b=K().brief||{},v=b[k]??'';
@@ -1257,7 +1272,7 @@ function briefView(){
    <div class="list" style="gap:2px">${all.map(p=>`<label class="bed"><span><input type="checkbox" data-briefsel="${esc(p.id)}" ${selIds.has(p.id)?'checked':''}> ${pTag(p)}${esc(p.naam)}${p.status==='Wachtlijst'?' <span class="chip g">Wachtlijst</span>':''}</span>${p.email?'':'<span class="hint" style="margin:0">geen e-mail</span>'}</label>`).join('')||'<p class="hint">Nog geen deelnemers in dit kamp.</p>'}</div></div>
   </div><div>
   <div class="row lacts" style="margin-bottom:10px"><button class="btn primary" data-briefdocx="1" ${kies.length?'':'disabled'}>Download als Word (${kies.length} brie${kies.length===1?'f':'ven'}${ficheAan()?' + fiche'+(kies.length===1?'':'s'):''})</button><button class="btn" data-briefprint="1" ${kies.length?'':'disabled'}>Afdrukken / PDF</button></div>
-  <div class="letters">${kies.map(p=>{const m=briefModel(p);return `<div class="lwrap">${briefHTML(m)}${ficheAan()?ficheHTML(ficheModel(p)):''}${p&&p.email?`<div class="row lacts"><a class="btn small" href="mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(k.naam||'Kamp')}&body=${encodeURIComponent(briefTekst(m).slice(0,1800))}" target="_blank" rel="noopener">Mail naar ${esc(voornaam(p.naam))}</a></div>`:''}</div>`}).join('')||empty('Geen brieven gekozen','Vink hiernaast de deelnemers aan die een brief krijgen.')}</div>
+  ${briefMailPanel(kies)}<div class="letters">${kies.map(p=>{const m=briefModel(p);return `<div class="lwrap">${briefHTML(m)}${ficheAan()?ficheHTML(ficheModel(p)):''}</div>`}).join('')||empty('Geen brieven gekozen','Vink hiernaast de deelnemers aan die een brief krijgen.')}</div>
   </div></div>`;
 }
 
@@ -1757,10 +1772,14 @@ async function readBon(blob){
 
 /* ---------- gebeurtenissen ---------- */
 async function armed(t,label){if(!t.classList.contains('armed')){t.classList.add('armed');t.dataset.orig=t.textContent;t.textContent=label||'Zeker? Klik nogmaals';return false}return true}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-briefmail]');if(!a)return;const k=K();if(!k.id)return;
+  const b=k.brief||{};setTimeout(()=>patchRec('kampen',k.id,{brief:{...b,gemaild:{...(b.gemaild||{}),[a.dataset.briefmail]:Date.now()}}}).catch(()=>{}),400)});
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,[data-cal]');if(!t||t.closest('a'))return;
   const ds=t.dataset;
   if(ds.importok&&pendingImport){t.disabled=true;const ns=pendingImport;pendingImport=null;await addLeden(ns);render();return}
+  if(ds.briefbijlage){const p=get('deelnemers',ds.briefbijlage);if(p){t.disabled=true;try{await briefDownload([p])}finally{t.disabled=false}}return}
+  if(ds.briefwis){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{brief:{...(k.brief||{}),gemaild:{}}})}catch(err){}return}
   if(ds.briefdocx){t.disabled=true;try{await briefDownload()}finally{t.disabled=false}return}
   if(ds.briefprint){try{window.print()}catch(err){toast('Afdrukken lukt hier niet: download als Word en druk daar af')}return}
   if(ds.briefall){briefGekozen();briefSel=ds.briefall==='1'?null:new Set();if(ds.briefall==='0')briefAlg=false;render();return}
@@ -1928,6 +1947,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-1540 -->
+<!-- versie 20261126-1548 -->
 </body>
 </html>
