@@ -410,6 +410,11 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 /* extra onderdelen */
+.aandacht{margin-top:14px}.aandacht h3{margin-top:0}
+.aitem{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:10px;background:var(--surface2);color:var(--fg);text-decoration:none;font-size:14.5px;line-height:1.35}
+a.aitem:hover{background:color-mix(in srgb,var(--orange) 8%,var(--surface2))}
+.aitem i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--gold)}.aitem.r i{background:var(--red)}
+.aitem span:not(.pijl){flex:1;min-width:0}.aitem .pijl{color:var(--muted);font-size:20px;line-height:1}
 .evscores{display:flex;flex-direction:column;gap:8px}.evrij{display:grid;grid-template-columns:minmax(0,190px) 1fr 40px;gap:10px;align-items:center;font-size:14px}.evrij .num{text-align:right}
 .matprint{display:none}
 .xterug.aan{background:var(--tealglow);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent)}
@@ -456,7 +461,7 @@ details.panel>summary{cursor:pointer}
 @media (max-width:640px){.ntab thead{display:none}.ntab,.ntab tbody,.ntab tr,.ntab td{display:block;width:100%}.ntab tr{border:1px solid #9a9a9a;border-radius:6px;margin-bottom:6px;overflow:hidden}.ntab td{display:flex;gap:8px;border:0!important;border-bottom:1px solid #eee!important}.ntab td::before{content:attr(data-l);flex:none;width:96px;color:#777;font-size:11px}.nkop{flex-direction:column}.nnood{text-align:left}}
 @media print{.ntab thead{display:table-header-group}.ntab tr{break-inside:avoid}}
 @media print{body *{visibility:hidden!important}.letters,.letters *{visibility:visible!important}.letters{position:absolute;left:0;top:0;width:100%;gap:0}.letter{box-shadow:none;border:0;border-radius:0;padding:0;break-after:page}.lacts,.letters .empty{display:none!important}.letter mark{background:none}}
-@media (min-width:721px){nav.tabs{gap:2px!important}nav.tabs a,nav.tabs a.hometab{padding-left:10px!important;padding-right:10px!important}}
+@media (min-width:721px){nav.tabs{gap:2px!important}nav.tabs a,nav.tabs a.hometab{padding-left:8px!important;padding-right:8px!important}}
 .sheet.groot{width:100%;border-left:0;padding-left:max(18px,calc((100% - 1100px)/2));padding-right:max(18px,calc((100% - 1100px)/2))}
 .sheet.groot .fields{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .sheet.groot textarea{min-height:150px;font-size:16px;line-height:1.6;padding:12px 14px;overflow:hidden;resize:none}
@@ -549,6 +554,7 @@ nav.tabs a.hometab{font-size:13.5px;padding:8px 14px}
 .micon{grid-row:1/3;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--glow);color:var(--orange)}
 .micon .ico{width:26px;height:26px}
 .m-monitoren .micon,.m-boekhouding .micon{background:var(--tealglow);color:var(--teal)}
+.m-zorg .micon{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
 .m-kalender .micon,.m-socials .micon,.m-algvergaderingen .micon{background:var(--purpleglow);color:var(--purple)}
 .mainhead .n{font-size:20px;text-transform:none;letter-spacing:-.005em;line-height:1.1;grid-column:2}
 .mainhead .c{font-family:var(--body);font-size:13px;text-transform:none;letter-spacing:0;grid-column:2}
@@ -868,12 +874,12 @@ const COLS=Object.keys(SCHEMA);
 const SCOPED=COLS.filter(c=>!SCHEMA[c].global);
 const phKey=col=>(SCHEMA[col]?.fields.find(f=>f.t==='photo')||{}).k;
 const MENU=[
-  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['ongevallen','EHBO-logboek'],['aanwezig','Aanwezigheden'],['noodfiche','Noodfiche'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['attesten','Attesten'],['fietsen','Fietsen',1]]],
-  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['materiaal','Materiaallijst'],['evaluaties','Evaluatie'],['mails','Mails']]],
-  ['kalender','Kalender',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['locaties','Locatie']]],
-  ['contacten','Contacten',[]],
-  ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen'],['herinnering','Betalingsherinnering']]],
-  ['socials','Socials',[['blog','Blog'],['chat','WhatsApp']]],
+  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['aanwezig','Aanwezigheden'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['fietsen','Fietsen',1],['leden','Algemene lijst']]],
+  ['zorg','Zorg',[['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['ongevallen','EHBO-logboek'],['noodfiche','Noodfiche'],['contacten','Noodnummers & contacten']]],
+  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['taken','Takenlijst'],['materiaal','Materiaallijst'],['vergaderingen','Vergaderingen'],['evaluaties','Evaluatie']]],
+  ['kalender','Programma',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['ritten','Fietsritten',1],['locaties','Locatie']]],
+  ['socials','Communicatie',[['brief','Uitnodigingsbrief'],['mails','Mails'],['blog','Blog voor ouders'],['chat','WhatsApp']]],
+  ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen'],['herinnering','Betalingsherinnering'],['attesten','Attesten']]],
   ['algvergaderingen','Algemene vergadering',[]]];
 const TABS=[['overzicht','Start'],...MENU.flatMap(g=>g[2].length?g[2]:[[g[0],g[1]]])];
 let actFilter='';
@@ -966,6 +972,7 @@ const ICONS={
   boekhouding:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><path d="M15.5 14.5h2"/><path d="M6 6l9-3 1.2 3"/>',
   contacten:'<path d="M5 4h3.5l1.8 4.5-2.3 1.4a11 11 0 0 0 6.1 6.1l1.4-2.3L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5C10.6 20 4 13.4 3.5 5.6A1.5 1.5 0 0 1 5 4z"/>',
   algvergaderingen:'<rect x="3.5" y="10" width="17" height="5.5" rx="1.5"/><circle cx="7.5" cy="5.5" r="2.2"/><circle cx="16.5" cy="5.5" r="2.2"/><path d="M6.5 15.5V20M17.5 15.5V20"/>',
+  zorg:'<path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/><path d="M12 10.5v5M9.5 13h5"/>',
   socials:'<path d="M20.5 12a8 8 0 0 1-11.8 7L4 20l1.1-4.4A8 8 0 1 1 20.5 12z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/>'};
 const ico=n=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||''}</svg>`;
 /* socials */
@@ -1891,6 +1898,40 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('click',e=>{const a=e.target.closest('a[data-xblogmailto]');if(!a)return;const id=a.dataset.xblogmailto;setTimeout(()=>patchRec('blog',id,{gemaildOuders:Date.now()}).catch(()=>{}),400)});
 
+
+/* ---------- startpagina: wat vraagt aandacht? ---------- */
+function aandacht(){
+  const k=K();if(!k.id)return '';const today=iso(new Date());const ds=kampDagen();const bezig=ds.includes(today);
+  const eind=k.eind||k.start;const voor=!!k.start&&today<k.start,na=!!eind&&today>eind;const tot=k.start?Math.round((pd(k.start)-pd(today))/864e5):null;
+  const ps=cur('deelnemers').filter(actief);const L=[];const add=(niv,t,href,knop='')=>L.push({niv,t,href,knop});const mv=(n,een,meer)=>n+' '+(n===1?een:meer);
+  if(!k.start)add('r','De data van het kamp zijn nog niet ingevuld.','',`<button class="btn small" data-edit="kampen" data-id="${esc(k.id)}">Vul in</button>`);
+  if(!ps.length&&!na)add('g','Er zijn nog geen deelnemers ingeschreven.','#deelnemers');
+  const taken=cur('taken').filter(r=>r.klaar!=='Klaar');
+  const laat=taken.filter(r=>r.deadline&&r.deadline<today).length;if(laat)add('r',mv(laat,'taak is','taken zijn')+' te laat.','#taken');
+  const week=taken.filter(r=>r.deadline&&r.deadline>=today&&r.deadline<=schuif(today,7)).length;if(week)add('g',mv(week,'taak moet','taken moeten')+' deze week klaar zijn.','#taken');
+  const kort=bezig||(tot!=null&&tot>=0&&tot<=14);
+  const zn=ps.filter(p=>!p.noodcontact).length;if(zn&&!na)add(kort?'r':'g',mv(zn,'deelnemer','deelnemers')+' zonder noodcontact.','#deelnemers');
+  const b=num(k.bijdrage);if(b){const op=ps.filter(p=>num(p.betaald)<b);if(op.length)add(kort?'r':'g',`${mv(op.length,'deelnemer moet','deelnemers moeten')} nog betalen (samen ${eur(op.reduce((s,p)=>s+b-num(p.betaald),0))}).`,'#herinnering')}
+  if(voor&&ps.length){const gm=briefGemaild();const n=ps.filter(p=>p.email&&!gm[p.id]).length;if(n)add('g',mv(n,'deelnemer kreeg','deelnemers kregen')+' de uitnodigingsbrief nog niet.','#brief')}
+  const zm=ps.filter(p=>!p.email).length;if(zm&&!na)add('g',mv(zm,'deelnemer','deelnemers')+' zonder e-mailadres.','#deelnemers');
+  if((voor&&tot!=null&&tot<=10)||bezig){const mat=cur('materiaal');if(!mat.length)add('g','Er is nog geen materiaallijst.','#materiaal');else{const n=mat.filter(r=>!r.ingepakt).length;if(n&&voor)add(tot<=3?'r':'g',mv(n,'ding','dingen')+' nog in te pakken.','#materiaal')}}
+  if(bezig){
+    const act=new Set(ps.map(p=>p.id)),vm=vinkMap('med',today);
+    const moet=cur('medicatie').filter(r=>act.has(r.deelnemer)).flatMap(r=>medSlots(r.momenten).filter(s=>s!=='Indien nodig').map(s=>r.id+'|'+s));
+    const open=moet.filter(x=>!vm.has(x)).length;if(open)add('r','Vandaag nog '+mv(open,'keer','keer')+' medicatie te geven.','#medronde');
+    if(ps.length&&!cur('afvink').some(r=>r.soort==='appel'&&r.dag===today))add('g','Vandaag is er nog niemand geteld bij Aanwezigheden.','#aanwezig');
+  }
+  const verz=cur('ongevallen').filter(r=>r.verzekering==='Nog te doen').length;if(verz)add('r',mv(verz,'aangifte','aangiftes')+' bij de verzekering nog te doen.','#ongevallen');
+  const ouders=cur('ongevallen').filter(r=>!r.ouders||r.ouders==='Nee').length;if(ouders)add('g',`Bij ${mv(ouders,'voorval','voorvallen')} in het EHBO-logboek zijn de ouders nog niet verwittigd.`,'#ongevallen');
+  if(na){
+    if(!cur('evaluaties').length)add('g','Het kamp is voorbij: vul de evaluatie in.','#evaluaties');
+    const nt=cur('materiaal').filter(r=>r.ingepakt&&!r.terug).length;if(nt)add('r',mv(nt,'ding is','dingen zijn')+' nog niet terug binnengebracht.','#materiaal');
+    const ag=(k.attest||{}).gemaild||{};const n=ps.filter(p=>p.email&&!ag[p.id]).length;if(n)add('g',mv(n,'attest','attesten')+' voor de mutualiteit nog niet gemaild.','#attesten');
+  }
+  L.sort((a,b)=>(a.niv==='r'?0:1)-(b.niv==='r'?0:1));
+  return `<section class="panel aandacht"><h3>Wat vraagt aandacht? ${L.length?`<span class="lbl">${L.length}</span>`:''}</h3>${L.length?`<div class="xlijst">${L.map(x=>x.href?`<a class="aitem ${x.niv}" href="${x.href}"><i aria-hidden="true"></i><span>${esc(x.t)}</span><span class="pijl" aria-hidden="true">›</span></a>`:`<div class="aitem ${x.niv}"><i aria-hidden="true"></i><span>${esc(x.t)}</span>${x.knop}</div>`).join('')}</div>`:'<p class="hint" style="margin:0">Alles in orde ✓ Er is niets dat dringend aandacht vraagt.</p>'}</section>`;
+}
+
 /* ---------- klikken en wijzigen ---------- */
 const zeker=t=>{if(t.dataset.zeker)return true;t.dataset.zeker='1';const o=t.textContent;t.textContent='Zeker? Klik nogmaals';setTimeout(()=>{if(t.isConnected){delete t.dataset.zeker;t.textContent=o}},3500);return false};
 document.addEventListener('click',async e=>{
@@ -1942,7 +1983,7 @@ overzicht(days){
   const status=x=>{if(!x.start)return ['Geen data',''];const e=x.eind||x.start;if(x.start<=today&&e>=today)return ['Bezig','k'];if(x.start>today){const n=Math.round((pd(x.start)-pd(today))/864e5);return ['Nog '+n+(n===1?' dag':' dagen'),'o']}return ['Afgelopen','']};
   return `<section class="welcome"><div class="lbl">Welkom</div><h2>Kies je kamp</h2><p class="hint" style="margin:0;max-width:60ch">Fietsvakantie, sportkamp, zeekamp of iets anders: kies hieronder een kamp en open daarna het onderdeel dat je nodig hebt.</p></section>
   <div class="kgrid">${ks.map(x=>{const [st,c]=status(x);return `<button class="kcard ${x.id===curKamp?'sel':''}" data-gokamp="${esc(x.id)}" aria-pressed="${x.id===curKamp}"><span class="row"><i class="kdot" style="background:${kampColor(x.id)}"></i><span class="chip">${esc(x.type||'Kamp')}</span>${c?`<span class="chip ${c}">${esc(st)}</span>`:`<span class="chip">${esc(st)}</span>`}</span><span class="t">${esc(x.naam)}</span><span class="m">${esc([x.start?fd(x.start)+(x.eind&&x.eind!==x.start?' – '+fd(x.eind):'')+' '+pd(x.start).getFullYear():'',x.bestemming].filter(Boolean).join(' · '))}</span><span class="m num">${data.deelnemers.filter(p=>p.kamp===x.id&&actief(p)).length}${num(x.maxDeelnemers)?' / '+num(x.maxDeelnemers):''} deelnemers · ${data.monitoren.filter(p=>p.kamp===x.id).length} monitoren</span></button>`}).join('')}
-  <button class="kcard new" data-new="kampen"><span class="t">+ Nieuw kamp</span><span class="m">Fietsvakantie, sportkamp, zeekamp…</span></button></div>`+(K().id?tiles()+VIEWS.dash(days):'')+backupPanel();
+  <button class="kcard new" data-new="kampen"><span class="t">+ Nieuw kamp</span><span class="m">Fietsvakantie, sportkamp, zeekamp…</span></button></div>`+(K().id?(()=>{const d=VIEWS.dash(days),i=d.indexOf('<div class="stats">');return d.slice(0,i)+aandacht()+tiles()+d.slice(i)})():'')+backupPanel();
 },
 dash(days){
   const k=K();
@@ -2200,7 +2241,7 @@ contacten(){
     <div class="row">${c.telefoon?`<a class="btn small primary" href="tel:${esc(String(c.telefoon).replace(/[^\d+]/g,''))}">Bel</a>${n?`<a class="btn small" href="https://wa.me/${n}" target="_blank" rel="noopener">WhatsApp ↗</a>`:''}<button class="btn small" data-copytel="${esc(c.telefoon)}">Kopieer nummer</button>`:''}<button class="btn small" data-edit="contacten" data-id="${esc(c.id)}">Wijzig</button></div></div>`};
   const vast=VAST.map(v=>{const cs=list.filter(c=>c.rol===v);return cs.length?cs.map(card).join(''):`<button class="card ccard leeg" data-new="contacten" data-rol="${esc(v)}"><span class="lbl">${esc(v)}</span><span class="t">+ Vul in</span><span class="m">${v==='Noodnummer Recreas'?'Geldt voor alle kampen':'Voor dit kamp'}</span></button>`}).join('');
   const rest=list.filter(c=>!VAST.includes(c.rol)).sort((a,b)=>String(a.rol).localeCompare(String(b.rol),'nl'));
-  return header('Contacten','contacten')+`<p class="hint" style="margin-top:0">Bij noodgeval: <b>112</b>. Bellen vanuit de app werkt niet op elk toestel; het nummer is altijd te kopiëren.</p>
+  return header('Noodnummers & contacten','contacten')+`<p class="hint" style="margin-top:0">Bij noodgeval: <b>112</b>. Bellen vanuit de app werkt niet op elk toestel; het nummer is altijd te kopiëren.</p>
   <div class="grid">${vast}</div>
   <div class="group"><span class="lbl">Andere contacten</span>${rest.length?`<div class="grid">${rest.map(card).join('')}</div>`:`<p class="hint">Voeg hier extra nummers toe, zoals de huisarts, het ziekenhuis, de busmaatschappij of de fietsenmaker.</p>`}</div>`;
 },
@@ -2221,7 +2262,7 @@ algvergaderingen(){return vergLijst('algvergaderingen')},
 blog(){
   const list=cur('blog').sort((a,b)=>(b.datum||'').localeCompare(a.datum||'')||(b.aangemaakt||0)-(a.aangemaakt||0));
   const reac=cur('reacties');
-  return header('Blog','blog')+`<p class="hint">Het blog is voor de ouders. Elk bericht kun je met één klik als mail naar alle ouders sturen, met de foto's erbij. De ouders staan in BCC: ze zien elkaars adres niet.</p>`+(list.length?`<div class="feed">${list.map(r=>{const media=[...(Array.isArray(r.media)?r.media:[]),...(r.foto&&!isPdf(r.foto)?[r.foto]:[])];const rs=reac.filter(x=>x.post===r.id).sort((a,b)=>(a.tijd||0)-(b.tijd||0));requestNames(rs.map(x=>x.van));
+  return header('Blog voor ouders','blog')+`<p class="hint">Het blog is voor de ouders. Elk bericht kun je met één klik als mail naar alle ouders sturen, met de foto's erbij. De ouders staan in BCC: ze zien elkaars adres niet.</p>`+(list.length?`<div class="feed">${list.map(r=>{const media=[...(Array.isArray(r.media)?r.media:[]),...(r.foto&&!isPdf(r.foto)?[r.foto]:[])];const rs=reac.filter(x=>x.post===r.id).sort((a,b)=>(a.tijd||0)-(b.tijd||0));requestNames(rs.map(x=>x.van));
     const share=[r.titel,r.tekst].filter(Boolean).join('\n\n');
     return `<article class="post">${media.length?gallery(media):''}<div class="lbl">${esc([r.datum?fdl(r.datum):'',r.auteur].filter(Boolean).join(' · '))}</div><h3>${esc(r.titel)}</h3>${r.tekst?`<div class="txt">${esc(r.tekst)}</div>`:''}
     <div class="row"><button class="btn small" data-edit="blog" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copytxt="${esc(r.id)}">Kopieer tekst</button><a class="btn small" href="https://wa.me/?text=${encodeURIComponent(share.slice(0,1500))}" target="_blank" rel="noopener">Deel tekst via WhatsApp ↗</a>${blogMailKnoppen(r)}</div>
@@ -2287,7 +2328,7 @@ function tiles(){
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
     chat:[cur('berichten').length,cur('groepen').length+' groepen'],
   };
-  const ci=capInfo();const head={algvergaderingen:data.algvergaderingen.length+' vergadering'+(data.algvergaderingen.length===1?'':'en')+' · '+data.algvergaderingen.filter(r=>r.datum>=today).length+' gepland',deelnemers:ci.n+(ci.max?' / '+ci.max:'')+' deelnemers'+(ci.vol?' · volzet':'')+(ci.wacht?' · '+ci.wacht+' op wachtlijst':''),monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:cur('blog').length+' blogberichten · '+cur('groepen').length+' groepen'};
+  const ci=capInfo();const head={zorg:cur('medicatie').length+' medicatie · '+cur('ongevallen').length+' in het EHBO-logboek',algvergaderingen:data.algvergaderingen.length+' vergadering'+(data.algvergaderingen.length===1?'':'en')+' · '+data.algvergaderingen.filter(r=>r.datum>=today).length+' gepland',deelnemers:ci.n+(ci.max?' / '+ci.max:'')+' deelnemers'+(ci.vol?' · volzet':'')+(ci.wacht?' · '+ci.wacht+' op wachtlijst':''),monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:'Brief, mails en '+cur('blog').length+' blogbericht'+(cur('blog').length===1?'':'en')+' voor ouders'};
   return `<div class="mains" aria-label="Hoofdmenu">${MENU.map(g=>{const subs=g[2].filter(s=>!s[2]||showFiets());const first=(subs[0]||[g[0]])[0];
     return `<div class="main m-${g[0]}"><a class="mainhead" href="#${first}"><span class="micon">${ico(g[0])}</span><span class="n">${esc(g[1])}</span><span class="c">${esc(head[g[0]]||'')}</span><span class="arrow" aria-hidden="true">›</span></a>${subs.length>1?`<div class="mainsubs">${subs.map(([id,l])=>`<a href="#${id}"><span>${esc(l)}</span><b class="num">${esc(info[id]?.[0]??'')}</b></a>`).join('')}</div>`:''}</div>`}).join('')}</div>`;
 }
@@ -2623,6 +2664,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-2234 -->
+<!-- versie 20261126-2243 -->
 </body>
 </html>
