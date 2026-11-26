@@ -410,6 +410,7 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 @media print{body *{visibility:hidden!important}.letters,.letters *{visibility:visible!important}.letters{position:absolute;left:0;top:0;width:100%;gap:0}.letter{box-shadow:none;border:0;border-radius:0;padding:0;break-after:page}.lacts,.letters .empty{display:none!important}.letter mark{background:none}}
+@media (min-width:721px){nav.tabs{gap:2px!important}nav.tabs a,nav.tabs a.hometab{padding-left:10px!important;padding-right:10px!important}}
 .sheet.groot{width:100%;border-left:0;padding-left:max(18px,calc((100% - 1100px)/2));padding-right:max(18px,calc((100% - 1100px)/2))}
 .sheet.groot .fields{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .sheet.groot textarea{min-height:150px;font-size:16px;line-height:1.6;padding:12px 14px;overflow:hidden;resize:none}
@@ -502,7 +503,7 @@ nav.tabs a.hometab{font-size:13.5px;padding:8px 14px}
 .micon{grid-row:1/3;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--glow);color:var(--orange)}
 .micon .ico{width:26px;height:26px}
 .m-monitoren .micon,.m-boekhouding .micon{background:var(--tealglow);color:var(--teal)}
-.m-kalender .micon,.m-socials .micon{background:var(--purpleglow);color:var(--purple)}
+.m-kalender .micon,.m-socials .micon,.m-algvergaderingen .micon{background:var(--purpleglow);color:var(--purple)}
 .mainhead .n{font-size:20px;text-transform:none;letter-spacing:-.005em;line-height:1.1;grid-column:2}
 .mainhead .c{font-family:var(--body);font-size:13px;text-transform:none;letter-spacing:0;grid-column:2}
 .mainhead .arrow{grid-column:3;grid-row:1/3;font-family:var(--display);font-size:28px;font-weight:500;color:var(--line)}
@@ -780,6 +781,8 @@ const SCHEMA={
     {k:'acties',l:'Actiepunten (wie doet wat tegen wanneer)',t:'area',w:1},
     {k:'bijlage',l:'Bijlage (foto of pdf)',t:'photo',pdf:1,w:1}]},
 };
+// algemene vergaderingen: los van een kamp, zelfde velden als de kampvergaderingen
+SCHEMA.algvergaderingen={one:'vergadering',global:1,fields:SCHEMA.vergaderingen.fields};
 const COLS=Object.keys(SCHEMA);
 const SCOPED=COLS.filter(c=>!SCHEMA[c].global);
 const phKey=col=>(SCHEMA[col]?.fields.find(f=>f.t==='photo')||{}).k;
@@ -789,7 +792,8 @@ const MENU=[
   ['kalender','Kalender',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['locaties','Locatie']]],
   ['contacten','Contacten',[]],
   ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen']]],
-  ['socials','Socials',[['blog','Blog'],['chat','WhatsApp']]]];
+  ['socials','Socials',[['blog','Blog'],['chat','WhatsApp']]],
+  ['algvergaderingen','Algemene vergadering',[]]];
 const TABS=[['overzicht','Start'],...MENU.flatMap(g=>g[2].length?g[2]:[[g[0],g[1]]])];
 let actFilter='';
 const MEAL_TIME={Ontbijt:'08:00',Middagmaal:'12:30',Lunch:'12:30',Picknick:'12:30',Tussendoortje:'16:00',Vieruurtje:'16:00',Avondmaal:'19:00',Diner:'19:00'};
@@ -880,6 +884,7 @@ const ICONS={
   kalender:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M8 14h2M14 14h2M8 17h2"/>',
   boekhouding:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><path d="M15.5 14.5h2"/><path d="M6 6l9-3 1.2 3"/>',
   contacten:'<path d="M5 4h3.5l1.8 4.5-2.3 1.4a11 11 0 0 0 6.1 6.1l1.4-2.3L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5C10.6 20 4 13.4 3.5 5.6A1.5 1.5 0 0 1 5 4z"/>',
+  algvergaderingen:'<rect x="3.5" y="10" width="17" height="5.5" rx="1.5"/><circle cx="7.5" cy="5.5" r="2.2"/><circle cx="16.5" cy="5.5" r="2.2"/><path d="M6.5 15.5V20M17.5 15.5V20"/>',
   socials:'<path d="M20.5 12a8 8 0 0 1-11.8 7L4 20l1.1-4.4A8 8 0 1 1 20.5 12z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/>'};
 const ico=n=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||''}</svg>`;
 /* socials */
@@ -1055,7 +1060,7 @@ function render(){
     if(mode==='lokaal'&&STANDALONE&&(!lastBackup||Date.now()-lastBackup>7*864e5)&&COLS.some(c=>data[c].length)) h+=`<div class="banner"><p>Je gegevens staan alleen op dit toestel. ${lastBackup?'Je laatste back-up is meer dan een week oud.':'Je hebt nog geen back-up gemaakt.'}</p><button class="btn small" data-backup="1">Maak back-up</button></div>`;
     const nVb=COLS.reduce((s,c)=>s+data[c].filter(r=>r.voorbeeld).length,0);
     if(nVb) h+=`<div class="banner"><p><b>${nVb} voorbeeldregels</b> tonen hoe alles werkt. Wis ze zodra je je eigen kamp invult.</p><button class="btn small danger" id="wipeVb">Wis voorbeelden</button></div>`;
-    if(!k.id&&!['kalender','overzicht','leden'].includes(view)) h+=empty('Nog geen kamp gekozen','Maak eerst een kamp aan; alles wat je daarna invult hoort bij dat kamp.',`<button class="btn primary" data-new="kampen">+ Nieuw kamp</button>`);
+    if(!k.id&&!['kalender','overzicht','leden','algvergaderingen'].includes(view)) h+=empty('Nog geen kamp gekozen','Maak eerst een kamp aan; alles wat je daarna invult hoort bij dat kamp.',`<button class="btn primary" data-new="kampen">+ Nieuw kamp</button>`);
     else h+=(VIEWS[view]||VIEWS.overzicht)(tripDays());
   }
   const ae=document.activeElement,fid=ae&&ae.id&&ae.classList&&ae.classList.contains('keep')?ae.id:null,pos=fid?ae.selectionStart:0;
@@ -1339,6 +1344,16 @@ function briefView(){
   </div></div>`;
 }
 
+function vergLijst(col){
+  const alg=col==='algvergaderingen';
+  const list=(alg?[...data.algvergaderingen]:cur('vergaderingen')).sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));const today=iso(new Date());
+  return header(alg?'Algemene vergadering':'Vergaderingen',col)+(list.length?`<div class="feed">${list.map(r=>`<article class="post"><div class="row"><span class="chip ${r.datum>=today?'o':''}">${esc(r.datum?fdl(r.datum):'')}${r.uur?' · '+esc(r.uur):''}</span>${r.plaats?`<span class="chip">${esc(r.plaats)}</span>`:''}${r.verslag?'<span class="chip k">Verslag</span>':(r.datum<today?'<span class="chip g">Nog geen verslag</span>':'')}</div>
+   <h3>${esc(r.titel)}</h3>${r.aanwezig?`<div class="hint">Aanwezig: ${esc(r.aanwezig)}${r.afwezig?' · Verontschuldigd: '+esc(r.afwezig):''}</div>`:''}
+   ${r.agenda?`<div><div class="lbl">Agenda</div><div class="txt">${esc(r.agenda)}</div></div>`:''}${r.verslag?`<div><div class="lbl">Verslag${r.notulist?' door '+esc(r.notulist):''}</div><div class="txt">${esc(r.verslag)}</div></div>`:''}${r.acties?`<div><div class="lbl">Actiepunten</div><div class="txt">${esc(r.acties)}</div></div>`:''}
+   ${r.bijlage?`<div class="row"><a class="chip o" href="${esc(phSrc(r.bijlage))}" target="_blank" rel="noopener">Bijlage openen ↗</a></div>`:''}
+   <div class="row"><button class="btn small" data-edit="${col}" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copyverslag="${esc(r.id)}" data-vcol="${col}">Kopieer verslag</button></div></article>`).join('')}</div>`
+  :(alg?empty('Nog geen algemene vergaderingen','Vergaderingen die over alle kampen gaan: hou hier agenda, verslag en actiepunten bij.',`<button class="btn primary" data-new="algvergaderingen">+ Eerste vergadering</button>`):empty('Nog geen vergaderingen','Plan de voorbereidende vergaderingen en hou de verslagen en actiepunten bij.')));
+}
 const VIEWS={
 overzicht(days){
   const today=iso(new Date());
@@ -1611,15 +1626,8 @@ mails(){
    <div class="row"><button class="btn small" data-edit="mails" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copyaddr="${esc(r.aan)}">Kopieer adressen</button><button class="btn small" data-copymail="${esc(r.id)}">Kopieer onderwerp + tekst</button>${rc.mails.length?`<a class="btn small" href="mailto:?bcc=${encodeURIComponent(rc.mails.join(','))}&subject=${encodeURIComponent(r.onderwerp||'')}&body=${encodeURIComponent((r.tekst||'').slice(0,1500))}" target="_blank" rel="noopener">Open in mailprogramma</a>`:''}${r.status!=='Verstuurd'?`<button class="btn small" data-sent="${esc(r.id)}">Markeer als verstuurd</button>`:''}</div></article>`}).join('')}</div>`
   :empty('Nog geen mails','Schrijf een mail voor de ouders, deelnemers of monitoren: praktische info, betalingsherinnering of een verslag.'));
 },
-vergaderingen(){
-  const list=cur('vergaderingen').sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));const today=iso(new Date());
-  return header('Vergaderingen','vergaderingen')+(list.length?`<div class="feed">${list.map(r=>`<article class="post"><div class="row"><span class="chip ${r.datum>=today?'o':''}">${esc(r.datum?fdl(r.datum):'')}${r.uur?' · '+esc(r.uur):''}</span>${r.plaats?`<span class="chip">${esc(r.plaats)}</span>`:''}${r.verslag?'<span class="chip k">Verslag</span>':(r.datum<today?'<span class="chip g">Nog geen verslag</span>':'')}</div>
-   <h3>${esc(r.titel)}</h3>${r.aanwezig?`<div class="hint">Aanwezig: ${esc(r.aanwezig)}${r.afwezig?' · Verontschuldigd: '+esc(r.afwezig):''}</div>`:''}
-   ${r.agenda?`<div><div class="lbl">Agenda</div><div class="txt">${esc(r.agenda)}</div></div>`:''}${r.verslag?`<div><div class="lbl">Verslag${r.notulist?' door '+esc(r.notulist):''}</div><div class="txt">${esc(r.verslag)}</div></div>`:''}${r.acties?`<div><div class="lbl">Actiepunten</div><div class="txt">${esc(r.acties)}</div></div>`:''}
-   ${r.bijlage?`<div class="row"><a class="chip o" href="${esc(phSrc(r.bijlage))}" target="_blank" rel="noopener">Bijlage openen ↗</a></div>`:''}
-   <div class="row"><button class="btn small" data-edit="vergaderingen" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copyverslag="${esc(r.id)}">Kopieer verslag</button></div></article>`).join('')}</div>`
-  :empty('Nog geen vergaderingen','Plan de voorbereidende vergaderingen en hou de verslagen en actiepunten bij.'));
-},
+vergaderingen(){return vergLijst('vergaderingen')},
+algvergaderingen(){return vergLijst('algvergaderingen')},
 blog(){
   const list=cur('blog').sort((a,b)=>(b.datum||'').localeCompare(a.datum||'')||(b.aangemaakt||0)-(a.aangemaakt||0));
   const reac=cur('reacties');
@@ -1680,7 +1688,7 @@ function tiles(){
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
     chat:[cur('berichten').length,cur('groepen').length+' groepen'],
   };
-  const ci=capInfo();const head={deelnemers:ci.n+(ci.max?' / '+ci.max:'')+' deelnemers'+(ci.vol?' · volzet':'')+(ci.wacht?' · '+ci.wacht+' op wachtlijst':''),monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:cur('blog').length+' blogberichten · '+cur('groepen').length+' groepen'};
+  const ci=capInfo();const head={algvergaderingen:data.algvergaderingen.length+' vergadering'+(data.algvergaderingen.length===1?'':'en')+' · '+data.algvergaderingen.filter(r=>r.datum>=today).length+' gepland',deelnemers:ci.n+(ci.max?' / '+ci.max:'')+' deelnemers'+(ci.vol?' · volzet':'')+(ci.wacht?' · '+ci.wacht+' op wachtlijst':''),monitoren:cur('monitoren').length+' monitoren',kalender:info.kalender[0]+' komende datums',boekhouding:'Saldo '+eur(m.saldo),contacten:data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length+' contacten · noodnummers',socials:cur('blog').length+' blogberichten · '+cur('groepen').length+' groepen'};
   return `<div class="mains" aria-label="Hoofdmenu">${MENU.map(g=>{const subs=g[2].filter(s=>!s[2]||showFiets());const first=(subs[0]||[g[0]])[0];
     return `<div class="main m-${g[0]}"><a class="mainhead" href="#${first}"><span class="micon">${ico(g[0])}</span><span class="n">${esc(g[1])}</span><span class="c">${esc(head[g[0]]||'')}</span><span class="arrow" aria-hidden="true">›</span></a>${subs.length>1?`<div class="mainsubs">${subs.map(([id,l])=>`<a href="#${id}"><span>${esc(l)}</span><b class="num">${esc(info[id]?.[0]??'')}</b></a>`).join('')}</div>`:''}</div>`}).join('')}</div>`;
 }
@@ -1762,7 +1770,7 @@ function openForm(col,id,preset={}){
   if(!id&&!vals.datum&&SCHEMA[col].fields.some(f=>f.k==='datum')){if(view==='planning'&&selDay)vals.datum=selDay;else if(col==='blog')vals.datum=iso(new Date())}
   const pk=phKey(col);
   form={col,id,meds:col==='deelnemers'&&id?data.medicatie.filter(m=>m.deelnemer===id).map(m=>({...m})):col==='leden'&&Array.isArray(vals.medicatie)?vals.medicatie.map(m=>({...m})):[],medDel:[],ph:pk?(vals[pk]||null):null,removed:[],blob:preset._blob||null,uploadedNew:!!preset._blob,media:Array.isArray(vals.media)?[...vals.media]:[],newMedia:[]};
-  $('#layer').innerHTML=`<div class="veil" id="veil"><form class="sheet${col==='vergaderingen'?' groot':''}" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" novalidate>
+  $('#layer').innerHTML=`<div class="veil" id="veil"><form class="sheet${col==='vergaderingen'||col==='algvergaderingen'?' groot':''}" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" novalidate>
    <div class="bar2"><h3 id="shT">${(id?'Wijzig ':'Nieuw'+(['planningsitem','blogbericht','kamp'].includes(sc.one)?' ':'e '))+esc(sc.one)}</h3><button type="button" class="btn small" id="shX" aria-label="Sluiten">Sluit</button></div>
    <div class="fields">${sc.fields.filter(f=>!f.fiets||showFiets()).map(f=>fieldHTML(f,vals[f.k]??'')).join('')}</div>${col==='deelnemers'?capNote(id):''}${col==='deelnemers'||col==='leden'?`<div class="medsec"><div class="medhead"><h4>Medische fiche</h4><span class="hint">${col==='leden'?'Gaat mee naar de medicatiefiches wanneer je deze persoon in een kamp zet':'Verschijnt ook bij Deelnemers › Medicatiefiches'}</span></div><div id="medsBox"></div></div>`:''}
    ${col==='kampen'?'<p class="hint" style="margin:0">Bij "Automatisch" verschijnen Fietsritten en Fietsen enkel bij een fietsvakantie.</p>':''}
@@ -1905,7 +1913,7 @@ document.addEventListener('click',async e=>{
   if(ds.copynums){const g=get('groepen',ds.copynums);const ps=(g&&g.leden||[]).map(x=>{const [c,id]=String(x).split(':');return get(c,id)}).filter(Boolean);const ns=ps.map(p=>waNum(p.gsm)).filter(Boolean).map(n=>'+'+n);copy(ns.join(', '),ns.length+' nummers gekopieerd');return}
   if(ds.copyaddr){const rc=recipients(ds.copyaddr);if(!rc.mails.length){toast('Nog geen e-mailadressen ingevuld');return}copy(rc.mails.join('; '),rc.mails.length+' adressen gekopieerd'+(rc.missing.length?' ('+rc.missing.length+' zonder adres)':''));return}
   if(ds.copymail){const r=get('mails',ds.copymail);if(r)copy((r.onderwerp||'')+'\n\n'+(r.tekst||''),'Onderwerp en tekst gekopieerd');return}
-  if(ds.copyverslag){const r=get('vergaderingen',ds.copyverslag);if(r)copy([r.titel,fdl(r.datum)+(r.uur?' '+r.uur:'')+(r.plaats?' · '+r.plaats:''),r.aanwezig?'Aanwezig: '+r.aanwezig:'',r.afwezig?'Verontschuldigd: '+r.afwezig:'',r.agenda?'AGENDA\n'+r.agenda:'',r.verslag?'VERSLAG\n'+r.verslag:'',r.acties?'ACTIEPUNTEN\n'+r.acties:''].filter(Boolean).join('\n\n'),'Verslag gekopieerd');return}
+  if(ds.copyverslag){const r=get(ds.vcol||'vergaderingen',ds.copyverslag);if(r)copy([r.titel,fdl(r.datum)+(r.uur?' '+r.uur:'')+(r.plaats?' · '+r.plaats:''),r.aanwezig?'Aanwezig: '+r.aanwezig:'',r.afwezig?'Verontschuldigd: '+r.afwezig:'',r.agenda?'AGENDA\n'+r.agenda:'',r.verslag?'VERSLAG\n'+r.verslag:'',r.acties?'ACTIEPUNTEN\n'+r.acties:''].filter(Boolean).join('\n\n'),'Verslag gekopieerd');return}
   if(ds.sent){try{await patchRec('mails',ds.sent,{status:'Verstuurd',datum:get('mails',ds.sent)?.datum||iso(new Date())});toast('Gemarkeerd als verstuurd')}catch(err){toast('Opslaan lukte niet')}return}
   if(t.id==='mailAI'){
     const ta=$('#f_tekst'),on=$('#f_onderwerp')?.value.trim(),aan=$('#f_aan')?.value||'Alle deelnemers';
@@ -2016,6 +2024,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-1705 -->
+<!-- versie 20261126-1718 -->
 </body>
 </html>
