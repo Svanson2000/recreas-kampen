@@ -410,6 +410,7 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 /* extra onderdelen */
+#sync{cursor:default}.syncpanel .fld{margin-bottom:10px}
 .aandacht{margin-top:14px}.aandacht h3{margin-top:0}
 .aitem{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:10px;background:var(--surface2);color:var(--fg);text-decoration:none;font-size:14.5px;line-height:1.35}
 a.aitem:hover{background:color-mix(in srgb,var(--orange) 8%,var(--surface2))}
@@ -1005,16 +1006,16 @@ async function saveRec(col,id,vals){
   if(!id&&SCOPED.includes(col)&&!vals.kamp)obj.kamp=curKamp;
   if(mode==='db'){ if(id){await db.collection(col).doc(id).set(obj);return id} const ref=await db.collection(col).add(obj);return ref.id }
   if(id){const i=data[col].findIndex(r=>r.id===id);data[col][i]={id,...obj}} else {id=uid();data[col].push({id,...obj})}
-  lsSet();render();return id;
+  lsSet();syncPlan();render();return id;
 }
 async function patchRec(col,id,vals){
   if(mode==='db') await db.collection(col).doc(id).update({...vals,gewijzigd:Date.now()});
-  else {Object.assign(get(col,id),vals);lsSet();render()}
+  else {Object.assign(get(col,id),vals,{gewijzigd:Date.now()});lsSet();syncPlan();render()}
 }
 async function delRec(col,id){
   const r=get(col,id);const pk=phKey(col);
   if(mode==='db') await db.collection(col).doc(id).delete();
-  else {data[col]=data[col].filter(x=>x.id!==id);lsSet();render()}
+  else {data[col]=data[col].filter(x=>x.id!==id);noteerWeg(col,id);lsSet();syncPlan();render()}
   if(r&&pk&&r[pk]) delMedia(r[pk]);
   if(r&&Array.isArray(r.media)) r.media.forEach(delMedia);
 }
@@ -1029,7 +1030,8 @@ async function startLocal(){
   try{for(const [k,blob] of await idbAll('media'))MEDIA[k]=URL.createObjectURL(blob)}catch(e){}
   try{lastBackup=(await idbDo('kv','readonly',st=>st.get('backup')))||0}catch(e){}
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-  mode='laden';startLocalSync(s);
+  await syncLaad();
+  mode='laden';startLocalSync(s);syncNaStart();
 }
 function startLocalSync(s){
   if(mode!=='laden')return;
@@ -1932,6 +1934,158 @@ function aandacht(){
   return `<section class="panel aandacht"><h3>Wat vraagt aandacht? ${L.length?`<span class="lbl">${L.length}</span>`:''}</h3>${L.length?`<div class="xlijst">${L.map(x=>x.href?`<a class="aitem ${x.niv}" href="${x.href}"><i aria-hidden="true"></i><span>${esc(x.t)}</span><span class="pijl" aria-hidden="true">›</span></a>`:`<div class="aitem ${x.niv}"><i aria-hidden="true"></i><span>${esc(x.t)}</span>${x.knop}</div>`).join('')}</div>`:'<p class="hint" style="margin:0">Alles in orde ✓ Er is niets dat dringend aandacht vraagt.</p>'}</section>`;
 }
 
+
+/* ===================== synchroniseren tussen toestellen (losse versie, zonder server) =====================
+   Elk toestel schrijft zijn eigen bestand recreas-sync-<toestel>.json in een gedeelde map (iCloud Drive, Dropbox,
+   OneDrive, Google Drive). Foto's staan ernaast als media-<sleutel>. Elk toestel leest de bestanden van de anderen
+   en voegt samen: per record wint de laatste wijziging; verwijderen wordt onthouden. */
+var WEG={},toestel=null,syncMap=null,syncStatus='',syncBezig=false,syncLaatst=0,syncGezien={},syncAndere={},schrijfNodig=true,syncT=0,syncWacht=false,installEvt=null;
+const SYNC_AAN=STANDALONE;
+const MAP_OK=SYNC_AAN&&typeof window.showDirectoryPicker==='function';
+const eigenBestand=()=>'recreas-sync-'+(toestel?toestel.id:'x')+'.json';
+const tsv=r=>r?(r.gewijzigd||r.aangemaakt||0):0;
+function noteerWeg(col,id){(WEG[col]=WEG[col]||{})[id]=Date.now();idbDo('kv','readwrite',st=>st.put(WEG,'weg')).catch(()=>{})}
+function syncPlan(){if(!SYNC_AAN)return;schrijfNodig=true;clearTimeout(syncT);if(syncMap)syncT=setTimeout(()=>syncNu(false),4000)}
+async function syncLaad(){
+  if(!SYNC_AAN)return;
+  try{WEG=(await idbDo('kv','readonly',st=>st.get('weg')))||{}}catch(e){}
+  try{toestel=await idbDo('kv','readonly',st=>st.get('toestel'))}catch(e){}
+  if(!toestel||!toestel.id){toestel={id:uid(),naam:''};idbDo('kv','readwrite',st=>st.put(toestel,'toestel')).catch(()=>{})}
+  try{syncAndere=(await idbDo('kv','readonly',st=>st.get('andere')))||{}}catch(e){}
+  if(MAP_OK){try{syncMap=(await idbDo('kv','readonly',st=>st.get('map')))||null}catch(e){}}
+}
+function syncNaStart(){
+  if(!syncMap)return;
+  mapToestemming(false).then(ok=>{if(ok)syncNu(false);else{syncStatus='toestemming';setSync('err','Klik om te synchroniseren');scheduleRender()}});
+}
+const aanHetTypen=()=>{const a=document.activeElement;return !!a&&a.closest&&a.closest('#main')&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)};
+function zoekMedia(o,m){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(x=>zoekMedia(x,m));return}
+  if(typeof o.idb==='string')m.set(o.idb,o.type||'');for(const v of Object.values(o))if(v&&typeof v==='object')zoekMedia(v,m)}
+/* gegevens van een ander toestel samenvoegen met wat hier staat */
+async function syncMerge(o,mediaBron){
+  if(!o||o.app!=='recreas-kampen'||!o.data)throw new Error('geen syncbestand');
+  let nieuw=0,weg=0;const nodig=new Map();
+  for(const col of COLS){const rs=o.data[col];if(!Array.isArray(rs))continue;const wl=WEG[col]||{};
+    for(const r of rs){if(!r||!r.id)continue;if(wl[r.id]&&wl[r.id]>=tsv(r))continue;
+      const i=data[col].findIndex(x=>x.id===r.id);
+      if(i<0){data[col].push(r);nieuw++}else if(tsv(r)>tsv(data[col][i])){data[col][i]=r;nieuw++}else continue;
+      zoekMedia(r,nodig)}}
+  for(const [col,m] of Object.entries(o.weg||{})){if(!data[col]||!m)continue;WEG[col]=WEG[col]||{};
+    for(const [id,ts] of Object.entries(m)){if((WEG[col][id]||0)<ts)WEG[col][id]=ts;
+      const i=data[col].findIndex(x=>x.id===id);if(i>=0&&tsv(data[col][i])<=ts){data[col].splice(i,1);weg++}}}
+  for(const [key,type] of nodig){if(MEDIA[key])continue;
+    try{let b=await mediaBron(key);if(!b)continue;if(type&&b.type!==type)b=new Blob([b],{type});
+      await idbDo('media','readwrite',st=>st.put(b,key));MEDIA[key]=URL.createObjectURL(b)}catch(e){}}
+  idbDo('kv','readwrite',st=>st.put(WEG,'weg')).catch(()=>{});
+  if(nieuw||weg){lsSet();schrijfNodig=true;if(aanHetTypen())syncWacht=true;else scheduleRender()}
+  return {nieuw,weg};
+}
+function syncSnap(media){return {app:'recreas-kampen',soort:'sync',versie:1,toestel:{id:toestel.id,naam:toestel.naam||''},tijd:Date.now(),data,weg:WEG,...(media?{media}:{})}}
+const dataUrlBlob=async u=>await (await fetch(u)).blob();
+function noteerAnder(o){if(o&&o.toestel&&o.toestel.id&&o.toestel.id!==toestel.id){syncAndere[o.toestel.id]={naam:o.toestel.naam||'',tijd:o.tijd||0};idbDo('kv','readwrite',st=>st.put(syncAndere,'andere')).catch(()=>{})}}
+
+/* ---------- gedeelde map (Chrome en Edge op computer) ---------- */
+async function mapToestemming(vraag){
+  if(!syncMap)return false;if(typeof syncMap.queryPermission!=='function')return true;const o={mode:'readwrite'};
+  try{if(await syncMap.queryPermission(o)==='granted')return true;if(vraag&&await syncMap.requestPermission(o)==='granted')return true}catch(e){}
+  return false;
+}
+async function mapKies(){
+  try{const h=await window.showDirectoryPicker({id:'recreas-sync',mode:'readwrite'});syncMap=h;syncGezien={};
+    await idbDo('kv','readwrite',st=>st.put(h,'map'));schrijfNodig=true;await syncNu(true);render()}
+  catch(e){if(!e||e.name!=='AbortError')toast('Map kiezen lukte niet')}
+}
+async function mapStop(){syncMap=null;syncStatus='';syncGezien={};try{await idbDo('kv','readwrite',st=>st.delete('map'))}catch(e){}setSync('ok','Op dit toestel');render()}
+async function mapSchrijf(bestaand){
+  const ws=async(naam,inh)=>{const fh=await syncMap.getFileHandle(naam,{create:true});const w=await fh.createWritable();await w.write(inh);await w.close()};
+  for(const [k,blob] of await idbAll('media')){if(!bestaand.has('media-'+k))await ws('media-'+k,blob)}
+  if(schrijfNodig||!bestaand.has(eigenBestand())){await ws(eigenBestand(),JSON.stringify(syncSnap()));schrijfNodig=false}
+}
+async function syncNu(vraag){
+  if(!syncMap||syncBezig)return;
+  if(!await mapToestemming(vraag)){syncStatus='toestemming';setSync('err','Klik om te synchroniseren');scheduleRender();return}
+  syncBezig=true;setSync('ok','Synchroniseren…');let nieuw=0,weg=0,ok=true;
+  try{
+    const bestaand=new Set(),andere=[];
+    for await (const [naam,h] of syncMap.entries()){bestaand.add(naam);if(h.kind==='file'&&/^recreas-sync-.+\.json$/.test(naam)&&naam!==eigenBestand())andere.push(h)}
+    for(const h of andere){const f=await h.getFile();if(syncGezien[h.name]===f.lastModified)continue;
+      try{const o=JSON.parse(await f.text());noteerAnder(o);
+        const r=await syncMerge(o,async key=>{if(o.media&&o.media[key])return dataUrlBlob(o.media[key]);try{return await (await syncMap.getFileHandle('media-'+key)).getFile()}catch(e){return null}});
+        nieuw+=r.nieuw;weg+=r.weg;syncGezien[h.name]=f.lastModified}catch(e){}}
+    await mapSchrijf(bestaand);syncLaatst=Date.now();syncStatus='ok';
+  }catch(e){ok=false;syncStatus='fout'}
+  syncBezig=false;
+  setSync(ok?'ok':'err',ok?'Gesynchroniseerd '+tijdVan(syncLaatst):'Map niet bereikbaar');
+  if(nieuw||weg)toast(`Gesynchroniseerd: ${nieuw} nieuw of gewijzigd${weg?', '+weg+' verwijderd':''}`);
+  const p=document.getElementById('syncInfo');if(p)p.innerHTML=syncInfoHTML();
+}
+if(SYNC_AAN){
+  setInterval(()=>{if(syncMap&&syncStatus==='ok'&&document.visibilityState==='visible')syncNu(false)},45000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncMap&&syncStatus==='ok')syncNu(false)});
+  window.addEventListener('online',()=>{if(syncMap&&syncStatus==='ok')syncNu(false)});
+  document.addEventListener('focusout',()=>setTimeout(()=>{if(syncWacht&&!aanHetTypen()){syncWacht=false;render()}},50));
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;scheduleRender()});
+  window.addEventListener('appinstalled',()=>{installEvt=null;toast('De app staat nu op deze computer');scheduleRender()});
+}
+
+/* ---------- sync-bestand (Safari, iPhone, iPad, Android) ---------- */
+async function bestandBewaar(){
+  toast('Bestand wordt gemaakt…');const media={};
+  try{for(const [k,blob] of await idbAll('media'))media[k]=await blobToDataURL(blob)}catch(e){}
+  const file=new File([JSON.stringify(syncSnap(media))],eigenBestand(),{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Recreas sync'});return}catch(e){if(e&&e.name==='AbortError')return}}
+  saveFile(file.name,file);setTimeout(()=>toast('Zet '+file.name+' in de gedeelde map'),300);
+}
+async function bestandLees(files){
+  const fs=[...files];const media={};fs.forEach(f=>{const m=f.name.match(/^media-(.+)$/);if(m)media[m[1]]=f});
+  let nieuw=0,weg=0,n=0;
+  for(const f of fs){if(!/\.json$/i.test(f.name)||f.name===eigenBestand())continue;
+    try{const o=JSON.parse(await f.text());if(o.app!=='recreas-kampen')continue;noteerAnder(o);
+      const r=await syncMerge(o,async key=>o.media&&o.media[key]?dataUrlBlob(o.media[key]):(media[key]||null));nieuw+=r.nieuw;weg+=r.weg;n++}catch(e){}}
+  toast(n?`${n} bestand${n===1?'':'en'} samengevoegd: ${nieuw} nieuw of gewijzigd${weg?', '+weg+' verwijderd':''}`:'Geen syncbestanden van andere toestellen gevonden');render();
+}
+
+/* ---------- paneel op de startpagina ---------- */
+function syncInfoHTML(){
+  if(!syncMap)return '';
+  const st=syncStatus==='toestemming'?'<b>Klik op “Nu synchroniseren”</b> om de map opnieuw te openen (de browser vraagt dat na het opstarten).':syncStatus==='fout'?'<b>De map is niet bereikbaar.</b> Kies ze opnieuw.':syncLaatst?'Laatst gesynchroniseerd om <b>'+tijdVan(syncLaatst)+'</b>. Daarna gebeurt het vanzelf na elke wijziging en elke minuut.':'Nog niet gesynchroniseerd.';
+  return `<p style="margin:0 0 8px">Gedeelde map: <b>${esc(syncMap.name||'gekozen')}</b>. ${st}</p>`;
+}
+function syncPanel(){
+  if(!SYNC_AAN||mode!=='lokaal')return '';
+  const als=window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const andere=Object.values(syncAndere).sort((a,b)=>b.tijd-a.tijd);
+  return `<div class="panel syncpanel" style="margin-top:14px"><h3>Samenwerken met andere monitoren</h3>
+  <p class="hint" style="margin-top:0">De app werkt volledig zonder internet. Wil je samenwerken? Kies allemaal <b>dezelfde gedeelde map</b> in iCloud Drive, Dropbox, OneDrive of Google Drive. Elk toestel zet zijn wijzigingen daar, en haalt die van de anderen op. Zonder internet werk je gewoon verder: zodra er weer verbinding is, loopt alles samen.</p>
+  <label class="fld" style="max-width:360px"><span class="lbl">Naam van dit toestel</span><input id="toestelNaam" value="${esc(toestel&&toestel.naam||'')}" placeholder="bv. Laptop Sven"></label>
+  ${MAP_OK?`<div id="syncInfo">${syncInfoHTML()}</div><div class="row">${syncMap?`<button class="btn small primary" data-xsyncnu="1">Nu synchroniseren</button><button class="btn small" data-xsynckies="1">Andere map</button><button class="btn small" data-xsyncstop="1">Stop met synchroniseren</button>`:`<button class="btn primary" data-xsynckies="1">Kies de gedeelde map</button>`}</div>
+   ${syncMap?'':'<p class="hint">Tip: maak eerst een map “Recreas sync” in iCloud Drive, Dropbox, OneDrive of Google Drive en deel ze met de andere monitoren.</p>'}`
+  :`<p class="hint" style="margin:4px 0 8px">In ${ios?'Safari op iPhone of iPad':'deze browser'} gaat het in twee stappen (op een computer met Chrome of Edge gebeurt het automatisch):</p>
+   <div class="row"><button class="btn small primary" data-xsyncbewaar="1">1. Bewaar mijn wijzigingen</button><label class="btn small">2. Haal wijzigingen van anderen op<input type="file" id="syncIn" multiple hidden></label></div>
+   <ol class="hint"><li>Bij stap 1 kies je <b>Bewaar in Bestanden</b> en dan de gedeelde map.</li><li>Bij stap 2 open je de gedeelde map, tik je op <b>Selecteer</b> en kies je alle bestanden.</li></ol>`}
+  ${andere.length?`<div class="lbl" style="margin-top:10px">Andere toestellen</div><div class="list" style="gap:2px">${andere.map(a=>`<div class="bed"><span>${esc(a.naam||'Toestel zonder naam')}</span><span class="hint" style="margin:0">laatste wijziging ${esc(a.tijd?fd(iso(new Date(a.tijd)))+' '+tijdVan(a.tijd):'?')}</span></div>`).join('')}</div>`:''}
+  <div class="lbl" style="margin-top:14px">App op dit toestel</div>
+  ${als?'<p class="hint" style="margin:4px 0 0">Je gebruikt de app ✓ Ze werkt ook zonder internet.</p>':installEvt?`<div class="row" style="margin-top:6px"><button class="btn small primary" data-xinstall="1">Installeer als app op deze computer</button></div><p class="hint">Daarna start je ze via het icoon, zoals elk ander programma, ook zonder internet.</p>`
+   :`<p class="hint" style="margin:4px 0 0">${ios?'Tik in Safari op <b>Deel</b> en dan <b>Zet op beginscherm</b>.':/Safari/.test(navigator.userAgent)&&!/Chrome|Edg/.test(navigator.userAgent)?'In Safari op de Mac: <b>Archief → Voeg toe aan Dock</b>. Voor automatisch synchroniseren gebruik je beter Chrome of Edge.':'In Chrome of Edge: klik rechts in de adresbalk op het installatie-icoon, of kies in het menu <b>Installeer Recreas</b>.'}</p>`}
+  </div>`;
+}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button');if(!t)return;const ds=t.dataset;
+  if(ds.xsynckies){await mapKies();return}
+  if(ds.xsyncnu){await syncNu(true);render();return}
+  if(ds.xsyncstop){if(!zeker(t))return;await mapStop();return}
+  if(ds.xsyncbewaar){t.disabled=true;try{await bestandBewaar()}finally{t.disabled=false}return}
+  if(ds.xinstall&&installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(err){}installEvt=null;render();return}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='syncIn'&&t.files&&t.files.length){await bestandLees(t.files);t.value='';return}
+  if(t.id==='toestelNaam'&&toestel){toestel={...toestel,naam:t.value.trim()};idbDo('kv','readwrite',st=>st.put(toestel,'toestel')).catch(()=>{});schrijfNodig=true;syncPlan();toast('Naam bewaard')}
+});
+
+document.addEventListener('click',e=>{if(e.target.closest('#sync')&&syncMap){syncNu(true)}});
+
 /* ---------- klikken en wijzigen ---------- */
 const zeker=t=>{if(t.dataset.zeker)return true;t.dataset.zeker='1';const o=t.textContent;t.textContent='Zeker? Klik nogmaals';setTimeout(()=>{if(t.isConnected){delete t.dataset.zeker;t.textContent=o}},3500);return false};
 document.addEventListener('click',async e=>{
@@ -1983,7 +2137,7 @@ overzicht(days){
   const status=x=>{if(!x.start)return ['Geen data',''];const e=x.eind||x.start;if(x.start<=today&&e>=today)return ['Bezig','k'];if(x.start>today){const n=Math.round((pd(x.start)-pd(today))/864e5);return ['Nog '+n+(n===1?' dag':' dagen'),'o']}return ['Afgelopen','']};
   return `<section class="welcome"><div class="lbl">Welkom</div><h2>Kies je kamp</h2><p class="hint" style="margin:0;max-width:60ch">Fietsvakantie, sportkamp, zeekamp of iets anders: kies hieronder een kamp en open daarna het onderdeel dat je nodig hebt.</p></section>
   <div class="kgrid">${ks.map(x=>{const [st,c]=status(x);return `<button class="kcard ${x.id===curKamp?'sel':''}" data-gokamp="${esc(x.id)}" aria-pressed="${x.id===curKamp}"><span class="row"><i class="kdot" style="background:${kampColor(x.id)}"></i><span class="chip">${esc(x.type||'Kamp')}</span>${c?`<span class="chip ${c}">${esc(st)}</span>`:`<span class="chip">${esc(st)}</span>`}</span><span class="t">${esc(x.naam)}</span><span class="m">${esc([x.start?fd(x.start)+(x.eind&&x.eind!==x.start?' – '+fd(x.eind):'')+' '+pd(x.start).getFullYear():'',x.bestemming].filter(Boolean).join(' · '))}</span><span class="m num">${data.deelnemers.filter(p=>p.kamp===x.id&&actief(p)).length}${num(x.maxDeelnemers)?' / '+num(x.maxDeelnemers):''} deelnemers · ${data.monitoren.filter(p=>p.kamp===x.id).length} monitoren</span></button>`}).join('')}
-  <button class="kcard new" data-new="kampen"><span class="t">+ Nieuw kamp</span><span class="m">Fietsvakantie, sportkamp, zeekamp…</span></button></div>`+(K().id?(()=>{const d=VIEWS.dash(days),i=d.indexOf('<div class="stats">');return d.slice(0,i)+aandacht()+tiles()+d.slice(i)})():'')+backupPanel();
+  <button class="kcard new" data-new="kampen"><span class="t">+ Nieuw kamp</span><span class="m">Fietsvakantie, sportkamp, zeekamp…</span></button></div>`+(K().id?(()=>{const d=VIEWS.dash(days),i=d.indexOf('<div class="stats">');return d.slice(0,i)+aandacht()+tiles()+d.slice(i)})():'')+backupPanel()+syncPanel();
 },
 dash(days){
   const k=K();
@@ -2664,6 +2818,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-2243 -->
+<!-- versie 20261126-2306 -->
 </body>
 </html>
