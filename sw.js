@@ -1,5 +1,5 @@
 // Offline-ondersteuning: eerst het netwerk (zodat updates meteen zichtbaar zijn), anders de bewaarde kopie.
-const CACHE='recreas-20261126-2153';
+const CACHE='recreas-20261126-2158';
 const KERN=['./','index.html','manifest.webmanifest','icon-180.png','icon-192.png','icon-512.png'];
 
 self.addEventListener('install',e=>{

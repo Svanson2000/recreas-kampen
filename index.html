@@ -410,6 +410,9 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 /* extra onderdelen */
+.matprint{display:none}
+.xterug.aan{background:var(--tealglow);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent)}
+@media print{.matprint{display:flex}}
 .letter.nood .ftitel,.letter.attest .ftitel{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:.04em;color:#da002f;text-transform:uppercase;margin:6px 0 8px}
 .letter.nood .fsub{font-weight:700;margin:14px 0 6px}
 @media (min-width:721px){.subtabs{flex-wrap:wrap;overflow:visible}}
@@ -832,12 +835,19 @@ SCHEMA.taken={one:'taak',fields:[
   {k:'klaar',l:'Status',t:'select',o:['Nog te doen','Bezig','Klaar']},
   {k:'notities',l:'Notities',t:'area',w:1}]};
 SCHEMA.afvink={one:'vinkje',hidden:1,fields:[]};
+// materiaal dat mee moet (Solidaris, S-Sport, zelf)
+SCHEMA.materiaal={one:'materiaal',fields:[
+  {k:'naam',l:'Wat',req:1,w:1},
+  {k:'categorie',l:'Categorie (kies of typ zelf)',list:['EHBO','Veiligheid en zichtbaarheid','Begeleiders op de fiets','Volgwagen','Fietsherstelkoffer','Administratie','Sport- en spelmateriaal','Kamp en keuken','Water en strand','Andere']},
+  {k:'aantal',l:'Aantal'},
+  {k:'bron',l:'Van wie',t:'select',o:['Solidaris','S-Sport','Zelf meebrengen','Huren / lenen']},
+  {k:'notities',l:'Notities (waar ligt het, wie brengt het mee…)',t:'area',w:1}]};
 const COLS=Object.keys(SCHEMA);
 const SCOPED=COLS.filter(c=>!SCHEMA[c].global);
 const phKey=col=>(SCHEMA[col]?.fields.find(f=>f.t==='photo')||{}).k;
 const MENU=[
   ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['aanwezig','Aanwezigheden'],['noodfiche','Noodfiche'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['attesten','Attesten'],['fietsen','Fietsen',1]]],
-  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['mails','Mails']]],
+  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['materiaal','Materiaallijst'],['mails','Mails']]],
   ['kalender','Kalender',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['locaties','Locatie']]],
   ['contacten','Contacten',[]],
   ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen'],['herinnering','Betalingsherinnering']]],
@@ -1644,6 +1654,76 @@ function takenView(){
   <div class="row" style="margin-top:14px"><button class="btn" data-xtaakstd="1">${ts.length?'Standaardtaken aanvullen':'Standaardtaken toevoegen'}</button></div>`;
 }
 
+
+/* ---------- 7. materiaallijst (wat moet mee: Solidaris, S-Sport, zelf) ---------- */
+const MAT_CATS=['EHBO','Veiligheid en zichtbaarheid','Begeleiders op de fiets','Volgwagen','Fietsherstelkoffer','Administratie','Sport- en spelmateriaal','Kamp en keuken','Water en strand','Andere'];
+const MAT_BRON=['Solidaris','S-Sport','Zelf meebrengen','Huren / lenen'];
+// [categorie, naam, aantal ('d'=aantal deelnemers, 'm'=aantal monitoren, 'dm'=samen), soort: f=alleen fietskamp, z=zee/water, ''=alle kampen]
+const MAT_STD=[
+ ['EHBO','Grote EHBO-koffer','1',''],['EHBO','Kleine EHBO-tas per begeleider','m',''],['EHBO','Wegwerphandschoenen (doos)','1',''],['EHBO','Ontsmettingsmiddel en wondverband','',''],
+ ['EHBO','Pleisters en blarenpleisters','',''],['EHBO','Koelkompressen / ijspacks','4',''],['EHBO','Tekentang','2',''],['EHBO','Thermometer','1',''],['EHBO','Isothermische deken','2',''],
+ ['EHBO','Zonnecrème en aftersun','',''],['EHBO','Insectenwerend middel','',''],['EHBO','EHBO-register (wie, wat, wanneer)','1',''],['EHBO','Medicatiedoos per deelnemer (met naam)','',''],
+ ['Veiligheid en zichtbaarheid','Fluohesjes deelnemers','d',''],['Veiligheid en zichtbaarheid','Fluohesjes begeleiders','m',''],['Veiligheid en zichtbaarheid','Seingeversborden (rood/wit stopbord)','2','f'],
+ ['Veiligheid en zichtbaarheid','Signalisatievlaggen','2','f'],['Veiligheid en zichtbaarheid','Fluitjes','m',''],['Veiligheid en zichtbaarheid','Walkietalkies (geladen)','m',''],
+ ['Veiligheid en zichtbaarheid','Zaklampen / hoofdlampjes','m',''],['Veiligheid en zichtbaarheid','Reservebatterijen','',''],['Veiligheid en zichtbaarheid','Fietshelmen (reserve)','4','f'],
+ ['Veiligheid en zichtbaarheid','Fietslichtjes voor en achter (reserve)','4','f'],
+ ['Begeleiders op de fiets','Kleine EHBO-tas','m','f'],['Begeleiders op de fiets','Herstelsetje (bandenlichters, binnenband, plakset)','m','f'],['Begeleiders op de fiets','Minipomp','m','f'],
+ ['Begeleiders op de fiets','Multitool','m','f'],['Begeleiders op de fiets','Gsm met noodnummers + powerbank','m','f'],['Begeleiders op de fiets','Routekaart / gps met de rit','m','f'],
+ ['Begeleiders op de fiets','Fietstas of rugzak','m','f'],['Begeleiders op de fiets','Regenjas','m','f'],['Begeleiders op de fiets','Drinkbus en reservewater','m','f'],['Begeleiders op de fiets','Fietsslot','m','f'],
+ ['Volgwagen','Magneetborden "Opgelet fietsers" / volgwagen','2','f'],['Volgwagen','Oranje zwaailicht','1','f'],['Volgwagen','Gevarendriehoek en brandblusser','1','f'],
+ ['Volgwagen','Fietsdrager of aanhangwagen','1','f'],['Volgwagen','Reservefiets(en) en reservetandem','','f'],['Volgwagen','Grote staanpomp','1','f'],['Volgwagen','Reserve binnenbanden en buitenbanden','','f'],
+ ['Volgwagen','Drinkwater (bidons, jerrycan)','','f'],['Volgwagen','Koelbox met snacks en fruit','1','f'],['Volgwagen','Droge reservekledij en regenponcho\'s','','f'],['Volgwagen','Vuilniszakken en keukenrol','','f'],
+ ['Volgwagen','Deelnemerslijst, noodfiche en medicatiefiches','1','f'],['Volgwagen','Laadkabel en omvormer voor gsm','1','f'],['Volgwagen','Spanbanden en bungees','6','f'],
+ ['Fietsherstelkoffer','Bandenlichters','4','f'],['Fietsherstelkoffer','Binnenbanden in alle maten (20", 24", 26", 28")','','f'],['Fietsherstelkoffer','Plakset','2','f'],
+ ['Fietsherstelkoffer','Pomp met Presta- en Schrader-ventiel','1','f'],['Fietsherstelkoffer','Inbussleutels en torx','1','f'],['Fietsherstelkoffer','Steeksleutels 8 tot 17 mm','1','f'],
+ ['Fietsherstelkoffer','Kettingpons en snelsluitschakels','1','f'],['Fietsherstelkoffer','Remblokjes (velg- en schijfrem)','','f'],['Fietsherstelkoffer','Rem- en schakelkabels','','f'],
+ ['Fietsherstelkoffer','Kettingolie en vet','1','f'],['Fietsherstelkoffer','Tie-wraps en ducttape','','f'],['Fietsherstelkoffer','Reservelampjes en batterijen','','f'],
+ ['Fietsherstelkoffer','Werkhandschoenen en poetsdoeken','','f'],['Fietsherstelkoffer','Montagestandaard','1','f'],
+ ['Administratie','Deelnemerslijst met noodnummers','1',''],['Administratie','Noodfiche (afgedrukt)','m',''],['Administratie','Ingevulde medicatiefiches','1',''],
+ ['Administratie','Verzekeringspapieren en aangifteformulieren ongeval','1',''],['Administratie','Kampkas en map voor bonnetjes','1',''],['Administratie','Planning en dagschema','m',''],
+ ['Sport- en spelmateriaal','Ballen (voetbal, volleybal, …)','',''],['Sport- en spelmateriaal','Hesjes in kleuren voor ploegen','',''],['Sport- en spelmateriaal','Kegels / potjes','20',''],
+ ['Sport- en spelmateriaal','Frisbees en spelletjes','',''],['Sport- en spelmateriaal','Touwen en lint','',''],['Sport- en spelmateriaal','Muziekbox','1',''],
+ ['Kamp en keuken','Verlengkabels en stekkerdozen','2',''],['Kamp en keuken','Vuilniszakken','',''],['Kamp en keuken','Handzeep en ontsmettingsgel','',''],['Kamp en keuken','Keukenrol en vaatdoeken','',''],
+ ['Water en strand','Zonnetent / schaduw','1','z'],['Water en strand','Reddingsboei of -lijn','1','z'],['Water en strand','Petjes en extra zonnecrème','','z'],['Water en strand','Waterschoenen (reserve)','','z']];
+const matAantal=a=>{const d=cur('deelnemers').filter(actief).length,m=cur('monitoren').length;return a==='d'?d||'':a==='m'?m||'':a==='dm'?(d+m)||'':a};
+let matBron='';
+async function matStd(){
+  const k=K(),fiets=showFiets(),zee=/zee|water|strand/i.test(k.type||'')||k.type==='Zeekamp';
+  const best=new Set(cur('materiaal').map(r=>normN(r.naam)));let n=0;
+  for(const [cat,naam,aantal,soort] of MAT_STD){
+    if(soort==='f'&&!fiets)continue;if(soort==='z'&&!zee)continue;if(best.has(normN(naam)))continue;
+    await saveRec('materiaal',null,{categorie:cat,naam,aantal:String(matAantal(aantal)),bron:'Solidaris'});n++}
+  toast(n?n+' dingen toegevoegd':'De standaardlijst staat er al');
+}
+function materiaalView(){
+  kampDagOf();const all=cur('materiaal');const lst=matBron?all.filter(r=>(r.bron||'')===matBron):all;
+  const nIn=lst.filter(r=>r.ingepakt).length,nTerug=lst.filter(r=>r.terug).length;
+  const cats=[...MAT_CATS,...new Set(lst.map(r=>r.categorie||'Andere').filter(c=>!MAT_CATS.includes(c)))].filter(c=>lst.some(r=>(r.categorie||'Andere')===c));
+  const fchip=(v,l)=>`<button class="chip${matBron===v?' o':''}" data-xmatbron="${esc(v)}" aria-pressed="${matBron===v}">${esc(l)} · ${v?all.filter(r=>(r.bron||'')===v).length:all.length}</button>`;
+  const rij=r=>`<div class="xtaak${r.ingepakt?' klaar':''}"><button class="xbox${r.ingepakt?' aan':''}" data-xmat="${esc(r.id)}" aria-pressed="${!!r.ingepakt}" aria-label="${esc(r.naam)}: ${r.ingepakt?'ingepakt':'nog in te pakken'}">${r.ingepakt?'✓':''}</button>
+   <span class="xn"><b>${r.aantal?esc(r.aantal)+' × ':''}${esc(r.naam)}</b><small>${esc([r.bron,r.notities].filter(Boolean).join(' · '))}</small></span>
+   <button class="btn small xterug${r.terug?' aan':''}" data-xmatterug="${esc(r.id)}" aria-pressed="${!!r.terug}" title="Na het kamp: is het terug binnengebracht?">${r.terug?'✓ Terug':'Terug?'}</button><button class="btn small" data-edit="materiaal" data-id="${esc(r.id)}">Wijzig</button></div>`;
+  const k=K();
+  return header('Materiaallijst','materiaal')+
+  `<p class="hint">Alles wat mee moet: van Solidaris (EHBO-koffer, fluohesjes, …), van S-Sport of zelf mee te brengen. Vink af wat ingepakt is. Na het kamp duid je met <b>Terug?</b> aan wat terug binnengebracht is.</p>
+  ${all.length?`<div class="row xchips" role="group" aria-label="Van wie">${fchip('','Alles')}${MAT_BRON.filter(b=>all.some(r=>r.bron===b)).map(b=>fchip(b,b)).join('')}</div>
+  <div class="panel xteller${nIn===lst.length?' vol':''}"><div><b class="num">${nIn} / ${lst.length}</b> ingepakt${nTerug?` · ${nTerug} terug binnengebracht`:''}</div><div class="xprog"><i style="width:${lst.length?Math.round(nIn/lst.length*100):0}%"></i></div>
+   <div class="row"><button class="btn small" data-briefprint="1">Afdrukken als checklist</button>${nIn?'<button class="btn small" data-xmatwis="1">Alle vinkjes wissen</button>':''}</div></div>`:''}
+  ${cats.map(c=>{const rs=lst.filter(r=>(r.categorie||'Andere')===c).sort((x,y)=>(x.aangemaakt||0)-(y.aangemaakt||0));return `<h3 class="xkop">${esc(c)} <span class="lbl">${rs.filter(r=>r.ingepakt).length}/${rs.length}</span></h3><div class="xlijst">${rs.map(rij).join('')}</div>`}).join('')}
+  ${all.length?'':empty('Nog geen materiaal','Begin met de standaardlijst voor dit soort kamp: EHBO, fluohesjes, materiaal voor de begeleiders'+(showFiets()?' op de fiets, de volgwagen en de fietsherstelkoffer':'')+'. Daarna pas je aan, vul je aantallen in of voeg je dingen toe.','')}
+  <div class="row" style="margin-top:14px"><button class="btn${all.length?'':' primary'}" data-xmatstd="1">${all.length?'Standaardlijst aanvullen':'Standaardlijst toevoegen'}${showFiets()?' (fietsvakantie)':''}</button></div>
+  <div class="letters matprint"><article class="letter"><div class="ftitel" style="color:#da002f;font-weight:800;text-transform:uppercase">Materiaallijst</div><div><b>${esc(k.naam||'')}</b>${k.start?' · '+esc([fdLang(k.start),fdLang(k.eind)].filter(Boolean).join(' – ')):''}${matBron?' · '+esc(matBron):''}</div>
+   ${cats.map(c=>`<div class="fsub" style="font-weight:700;margin:12px 0 4px">${esc(c)}</div><table class="ftab"><thead><tr><th style="width:8%">Mee</th><th>Wat</th><th style="width:10%">Aantal</th><th style="width:20%">Van</th><th style="width:8%">Terug</th></tr></thead><tbody>${lst.filter(r=>(r.categorie||'Andere')===c).sort((x,y)=>(x.aangemaakt||0)-(y.aangemaakt||0)).map(r=>`<tr><td>${r.ingepakt?'☑':'☐'}</td><td>${esc(r.naam)}${r.notities?' <small>('+esc(r.notities)+')</small>':''}</td><td>${esc(r.aantal||'')}</td><td>${esc(r.bron||'')}</td><td>${r.terug?'☑':'☐'}</td></tr>`).join('')}</tbody></table>`).join('')}</article></div>`;
+}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button');if(!t)return;const ds=t.dataset;
+  if(ds.xmatbron!==undefined){matBron=ds.xmatbron;render();return}
+  if(ds.xmat){const r=get('materiaal',ds.xmat);if(r)try{await patchRec('materiaal',r.id,{ingepakt:!r.ingepakt})}catch(err){toast('Bewaren lukte niet')}return}
+  if(ds.xmatterug){const r=get('materiaal',ds.xmatterug);if(r)try{await patchRec('materiaal',r.id,{terug:!r.terug})}catch(err){toast('Bewaren lukte niet')}return}
+  if(ds.xmatstd){t.disabled=true;try{await matStd()}catch(err){toast('Toevoegen lukte niet')}render();return}
+  if(ds.xmatwis){if(!zeker(t))return;for(const r of cur('materiaal'))if(r.ingepakt||r.terug)await patchRec('materiaal',r.id,{ingepakt:false,terug:false});render();return}
+});
+
 /* ---------- klikken en wijzigen ---------- */
 const zeker=t=>{if(t.dataset.zeker)return true;t.dataset.zeker='1';const o=t.textContent;t.textContent='Zeker? Klik nogmaals';setTimeout(()=>{if(t.isConnected){delete t.dataset.zeker;t.textContent=o}},3500);return false};
 document.addEventListener('click',async e=>{
@@ -1865,6 +1945,7 @@ noodfiche(){return noodView()},
 attesten(){return attView()},
 herinnering(){return herView()},
 taken(){return takenView()},
+materiaal(){return materiaalView()},
 ploegen(){
   const gs=cur('ploegen').sort(byName);const dl=cur('deelnemers').filter(actief).sort(byName);
   const zonder=dl.filter(p=>!ploegVan(p));
@@ -2029,6 +2110,7 @@ function tiles(){
     attesten:[cur('deelnemers').filter(actief).length,'attesten'],
     herinnering:[k.bijdrage?cur('deelnemers').filter(r=>actief(r)&&num(r.betaald)<num(k.bijdrage)).length:0,'nog te betalen'],
     taken:[cur('taken').filter(r=>r.klaar!=='Klaar').length,'open'],
+    materiaal:[cur('materiaal').filter(r=>!r.ingepakt).length,'in te pakken'],
     vergaderingen:[cur('vergaderingen').length,cur('vergaderingen').filter(r=>r.datum>=today).length+' gepland'],
     blog:[cur('blog').length,'berichten'],
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
@@ -2370,6 +2452,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-2153 -->
+<!-- versie 20261126-2158 -->
 </body>
 </html>
