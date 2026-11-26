@@ -410,6 +410,14 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 @media print{body *{visibility:hidden!important}.letters,.letters *{visibility:visible!important}.letters{position:absolute;left:0;top:0;width:100%;gap:0}.letter{box-shadow:none;border:0;border-radius:0;padding:0;break-after:page}.lacts,.letters .empty{display:none!important}.letter mark{background:none}}
+.sheet.groot{width:100%;border-left:0;padding-left:max(18px,calc((100% - 1100px)/2));padding-right:max(18px,calc((100% - 1100px)/2))}
+.sheet.groot .fields{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.sheet.groot textarea{min-height:150px;font-size:16px;line-height:1.6;padding:12px 14px;overflow:hidden;resize:none}
+.sheet.groot #f_verslag{min-height:50vh!important}
+.sheet.groot h3{font-size:28px}
+.sheet.groot .actions{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom,0px));background:var(--bg);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);z-index:2}
+@media (max-width:820px){.sheet.groot .fields{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.sheet.groot .fields{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(30px);opacity:.4}}}
 /* ===== S-Sport//Recreas-stijl: strakker, lichter, vriendelijker ===== */
 body{font-size:15.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -1754,16 +1762,18 @@ function openForm(col,id,preset={}){
   if(!id&&!vals.datum&&SCHEMA[col].fields.some(f=>f.k==='datum')){if(view==='planning'&&selDay)vals.datum=selDay;else if(col==='blog')vals.datum=iso(new Date())}
   const pk=phKey(col);
   form={col,id,meds:col==='deelnemers'&&id?data.medicatie.filter(m=>m.deelnemer===id).map(m=>({...m})):col==='leden'&&Array.isArray(vals.medicatie)?vals.medicatie.map(m=>({...m})):[],medDel:[],ph:pk?(vals[pk]||null):null,removed:[],blob:preset._blob||null,uploadedNew:!!preset._blob,media:Array.isArray(vals.media)?[...vals.media]:[],newMedia:[]};
-  $('#layer').innerHTML=`<div class="veil" id="veil"><form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" novalidate>
+  $('#layer').innerHTML=`<div class="veil" id="veil"><form class="sheet${col==='vergaderingen'?' groot':''}" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT" novalidate>
    <div class="bar2"><h3 id="shT">${(id?'Wijzig ':'Nieuw'+(['planningsitem','blogbericht','kamp'].includes(sc.one)?' ':'e '))+esc(sc.one)}</h3><button type="button" class="btn small" id="shX" aria-label="Sluiten">Sluit</button></div>
    <div class="fields">${sc.fields.filter(f=>!f.fiets||showFiets()).map(f=>fieldHTML(f,vals[f.k]??'')).join('')}</div>${col==='deelnemers'?capNote(id):''}${col==='deelnemers'||col==='leden'?`<div class="medsec"><div class="medhead"><h4>Medische fiche</h4><span class="hint">${col==='leden'?'Gaat mee naar de medicatiefiches wanneer je deze persoon in een kamp zet':'Verschijnt ook bij Deelnemers › Medicatiefiches'}</span></div><div id="medsBox"></div></div>`:''}
    ${col==='kampen'?'<p class="hint" style="margin:0">Bij "Automatisch" verschijnen Fietsritten en Fietsen enkel bij een fietsvakantie.</p>':''}
    ${col==='mails'&&sampleFn?'<div class="row" style="align-items:center"><button type="button" class="btn small" id="mailAI">Laat Claude de mail schrijven</button><span class="hint">Vul eerst onderwerp en eventueel een paar steekwoorden in het tekstvak in.</span></div>':''}
    <div class="actions"><div>${id?`<button type="button" class="btn danger" id="shDel">${col==='kampen'?'Verwijder kamp':'Verwijder'}</button>`:''}</div><div style="display:flex;gap:8px"><button type="button" class="btn" id="shC">Annuleer</button><button class="btn primary" id="shS">Bewaar</button></div></div></form></div>`;
   photoBox();mediaBox();syncDagen();medsBox();
+  document.querySelectorAll('.sheet.groot textarea').forEach(groei);
   if(preset._blob&&sampleFn&&col==='boekhouding')readBon(preset._blob);
   const first=$('#sheet input,#sheet select,#sheet textarea');if(first&&!id)first.focus();
 }
+function groei(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px'}
 function capNote(id){const c=capInfo();const prev=id?get('deelnemers',id):null;const parts=[];
   if(c.max)parts.push(c.vol&&!(prev&&actief(prev))?`<b class="neg">Volzet</b> (${c.n} / ${c.max}): nieuwe inschrijvingen komen op de wachtlijst.`:`Nog <b>${c.vrij}</b> van ${c.max} plaatsen vrij.`);
   if(showFiets()&&c.maxT)parts.push(`Tandems: <b>${c.t} / ${c.maxT}</b>${c.tVol?' (alle tandems toegekend)':''}.`);
@@ -1983,7 +1993,7 @@ document.addEventListener('change',async e=>{
     const f=t.files[0];t.value='';const m=$('#aiMsg');if(m)m.textContent='Opladen…';
     try{const {ph,blob}=await upload(f);if(form.ph)form.removed.push(form.ph);form.ph=ph;form.blob=blob;form.uploadedNew=true;photoBox();if(form.col==='boekhouding')readBon(blob)}catch(err){const m2=$('#aiMsg');if(m2)m2.textContent=err&&err.message?err.message:'Opladen lukte niet'}}
 });
-document.addEventListener('input',e=>{
+document.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('.sheet.groot textarea'))groei(e.target);
   if(e.target.id==='f_omschrijving'&&form&&form.col==='boekhouding'){const c=$('#f_categorie'),s=$('#f_soort');if(c&&(!c.value||form.catAuto)&&(!s||s.value!=='Inkomst')){const g=guessCat(e.target.value);if(g){c.value=g;form.catAuto=true}else if(form.catAuto){c.value='';}}}if(e.target.classList.contains('keep'))drafts[e.target.id]=e.target.value;
   if(e.target.id==='chatInput')document.querySelectorAll('[data-wabase]').forEach(a=>a.href=a.dataset.wabase+encodeURIComponent(e.target.value));if(e.target.id==='q'){q=e.target.value;const pos=e.target.selectionStart;render();const n=$('#q');if(n){n.focus();n.setSelectionRange(pos,pos)}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#veil'))closeForm()});
@@ -2006,6 +2016,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-1700 -->
+<!-- versie 20261126-1705 -->
 </body>
 </html>
