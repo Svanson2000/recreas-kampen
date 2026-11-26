@@ -1105,7 +1105,7 @@ const BRIEF_VELDEN=[
   ['locatie','Locatie','loc'],['startuur','Aankomstuur eerste dag','time'],['einduur','Einduur laatste dag','time'],
   ['nood','Noodcontact tijdens het kamp (naam + nummer)'],['medicatie','Medicatie afgeven aan'],['onderteken','Ondertekening'],['onderwerp','Onderwerp van de mail']];
 const PLAATSH=['voornaam','naam','kamp','locatie','adres','startdag','startuur','einddag','einduur','noodcontact','medicatie','ondertekening','prijs','groep','kamer'];
-let briefSel=null,briefAlg=false;
+let briefSel=null,briefAlg=false;const briefOpen={gegevens:null,tekst:false};
 const voornaam=n=>String(n||'').trim().split(/\s+/)[0]||'';
 const opsom=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' en '+a[a.length-1];
 function briefLoc(b){const ls=cur('locaties');if(b.locatie==='__best')return null;return ls.find(l=>l.id===b.locatie)||ls.find(l=>l.soort==='Kampplaats')||ls.find(l=>!['Hotel','B&B'].includes(l.soort))||ls[0]||null}
@@ -1312,21 +1312,21 @@ function briefView(){
   `<p class="hint">De brief vult zichzelf in met de gegevens van het kamp (locatie, data, uren, monitoren) en met de naam van elke deelnemer. Wat <mark>geel</mark> staat, ontbreekt nog.</p>
   ${mist.length?`<div class="banner" style="margin:0 0 14px"><p>Nog niet ingevuld: <b>${mist.map(n=>NL[n]).join(', ')}</b>. Vul het hieronder in, of bij het kamp en bij Locatie.</p></div>`:''}
   <div class="briefgrid"><div>
-  <details class="panel" ${Object.keys(b).length?'':'open'}><summary><h3 style="display:inline">Gegevens in de brief</h3></summary>
+  <details class="panel" data-briefdet="gegevens" ${(briefOpen.gegevens??!Object.keys(b).length)?'open':''}><summary><h3 style="display:inline">Gegevens in de brief</h3></summary>
    <p class="hint">Leeg laten = automatisch uit de app (grijs voorbeeld).</p><div class="fields">${BRIEF_VELDEN.map(briefVeld).join('')}</div></details>
-  <details class="panel" style="margin-top:12px"><summary><h3 style="display:inline">Tekst van de brief</h3></summary>
+  <details class="panel" id="briefTekstPaneel" data-briefdet="tekst" style="margin-top:12px" ${briefOpen.tekst?'open':''}><summary><h3 style="display:inline">Tekst van de brief</h3></summary>
    <p class="hint">Woorden tussen { } vult de app zelf in. Klik om er een in te voegen:</p>
    <div class="row" style="gap:4px;margin-bottom:8px">${PLAATSH.map(n=>`<button class="chip phbtn" data-phins="{${n}}">{${n}}</button>`).join('')}<button class="chip phbtn" data-phins="{paklijst}">{paklijst}</button></div>
    <label class="fld wide"><span class="lbl">Brieftekst</span><textarea id="briefTekst" data-brief="tekst" rows="16">${esc(c.tekst)}</textarea></label>
    <label class="fld wide"><span class="lbl">Paklijst (één ding per regel)</span><textarea data-brief="paklijst" rows="10">${esc(c.paklijst)}</textarea></label>
-   <div class="row"><button class="btn small" data-briefreset="1">Standaardtekst terugzetten</button></div></details>
+   <div class="row"><button class="btn small primary" data-briefklaar="1">Bewaar tekst</button><button class="btn small" data-briefreset="1">Standaardtekst terugzetten</button></div><p class="hint">Je wijzigingen gelden voor alle brieven en mails van dit kamp. De brieven rechts passen zich meteen aan.</p></details>
   <div class="panel" style="margin-top:12px"><div class="head" style="margin:0 0 8px"><h3 style="margin:0;flex:1">Voor wie? <span class="lbl">${kies.length}</span></h3>
    <button class="btn small" data-briefall="1">Alle ingeschrevenen</button><button class="btn small" data-briefall="0">Niemand</button></div>
    <label class="bed"><span><input type="checkbox" data-brieffiche="1" ${ficheAan()?'checked':''}> Medicatiefiche om in te vullen meesturen (na elke brief)</span></label>
    <label class="bed"><span><input type="checkbox" data-briefalg="1" ${briefAlg?'checked':''}> Algemene brief zonder naam (“Dag lieve vrienden”)</span></label>
    <div class="list" style="gap:2px">${all.map(p=>`<label class="bed"><span><input type="checkbox" data-briefsel="${esc(p.id)}" ${selIds.has(p.id)?'checked':''}> ${pTag(p)}${esc(p.naam)}${p.status==='Wachtlijst'?' <span class="chip g">Wachtlijst</span>':''}</span>${p.email?'':'<span class="hint" style="margin:0">geen e-mail</span>'}</label>`).join('')||'<p class="hint">Nog geen deelnemers in dit kamp.</p>'}</div></div>
   </div><div>
-  <div class="row lacts" style="margin-bottom:10px"><button class="btn primary" data-briefdocx="1" ${kies.length?'':'disabled'}>Download als Word (${kies.length} brie${kies.length===1?'f':'ven'}${ficheAan()?' + fiche'+(kies.length===1?'':'s'):''})</button><button class="btn" data-briefprint="1" ${kies.length?'':'disabled'}>Afdrukken / PDF</button></div>
+  <div class="row lacts" style="margin-bottom:10px"><button class="btn" data-brieftekst="1">✎ Tekst aanpassen</button><button class="btn primary" data-briefdocx="1" ${kies.length?'':'disabled'}>Download als Word (${kies.length} brie${kies.length===1?'f':'ven'}${ficheAan()?' + fiche'+(kies.length===1?'':'s'):''})</button><button class="btn" data-briefprint="1" ${kies.length?'':'disabled'}>Afdrukken / PDF</button></div>
   ${briefMailPanel(kies)}<div class="letters">${kies.map(p=>{const m=briefModel(p);return `<div class="lwrap">${briefHTML(m)}${ficheAan()?ficheHTML(ficheModel(p)):''}</div>`}).join('')||empty('Geen brieven gekozen','Vink hiernaast de deelnemers aan die een brief krijgen.')}</div>
   </div></div>`;
 }
@@ -1835,6 +1835,8 @@ document.addEventListener('click',async e=>{
   if(ds.importok&&pendingImport){t.disabled=true;const ns=pendingImport;pendingImport=null;await addLeden(ns);render();return}
   if(ds.briefbijlage){const p=get('deelnemers',ds.briefbijlage);if(p){t.disabled=true;try{await briefDownload([p])}finally{t.disabled=false}}return}
   if(ds.briefscript){t.disabled=true;try{await briefMailScript()}finally{t.disabled=false}return}
+  if(ds.brieftekst){briefOpen.tekst=true;render();const ta=document.getElementById('briefTekst');if(ta){document.getElementById('briefTekstPaneel').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>ta.focus({preventScroll:true}),350)}return}
+  if(ds.briefklaar){toast('Tekst bewaard');return}
   if(ds.briefwis){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{brief:{...(k.brief||{}),gemaild:{}}})}catch(err){}return}
   if(ds.briefdocx){t.disabled=true;try{await briefDownload()}finally{t.disabled=false}return}
   if(ds.briefprint){try{window.print()}catch(err){toast('Afdrukken lukt hier niet: download als Word en druk daar af')}return}
@@ -1951,10 +1953,11 @@ document.addEventListener('submit',async e=>{
   }catch(err){btn.disabled=false;btn.textContent='Bewaar';toast(err&&err.code==='not_granted'?'Je hebt geen schrijfrechten op deze app':'Bewaren lukte niet, probeer opnieuw')}
 });
 document.addEventListener('mousedown',e=>{if(e.target.closest('[data-phins]'))e.preventDefault()});
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.briefdet)briefOpen[d.dataset.briefdet]=d.open},true);
 document.addEventListener('change',async e=>{
   const t=e.target;
   if(t.id==='f_aanwezig'){syncDagen();return}
-  if(t.dataset.brief!==undefined){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{brief:{...(k.brief||{}),[t.dataset.brief]:t.value}})}catch(err){toast('Bewaren lukte niet')}return}
+  if(t.dataset.brief!==undefined){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{brief:{...(k.brief||{}),[t.dataset.brief]:t.value}});if(t.dataset.brief==='tekst'||t.dataset.brief==='paklijst')toast('Tekst bewaard')}catch(err){toast('Bewaren lukte niet')}return}
   if(t.dataset.briefsel){if(!briefSel)briefSel=new Set(briefGekozen().filter(Boolean).map(p=>p.id));if(t.checked)briefSel.add(t.dataset.briefsel);else briefSel.delete(t.dataset.briefsel);render();return}
   if(t.dataset.brieffiche){const k=K();if(!k.id)return;try{await patchRec('kampen',k.id,{brief:{...(k.brief||{}),fiche:t.checked?'':'nee'}})}catch(err){toast('Bewaren lukte niet')}return}
   if(t.dataset.briefalg){briefAlg=t.checked;render();return}
@@ -2003,6 +2006,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-1558 -->
+<!-- versie 20261126-1700 -->
 </body>
 </html>
