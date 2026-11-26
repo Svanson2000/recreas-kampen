@@ -410,6 +410,7 @@ details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
 /* extra onderdelen */
+.evscores{display:flex;flex-direction:column;gap:8px}.evrij{display:grid;grid-template-columns:minmax(0,190px) 1fr 40px;gap:10px;align-items:center;font-size:14px}.evrij .num{text-align:right}
 .matprint{display:none}
 .xterug.aan{background:var(--tealglow);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 45%,transparent)}
 @media print{.matprint{display:flex}}
@@ -835,6 +836,27 @@ SCHEMA.taken={one:'taak',fields:[
   {k:'klaar',l:'Status',t:'select',o:['Nog te doen','Bezig','Klaar']},
   {k:'notities',l:'Notities',t:'area',w:1}]};
 SCHEMA.afvink={one:'vinkje',hidden:1,fields:[]};
+// EHBO- en ongevallenlogboek
+SCHEMA.ongevallen={one:'notitie',fields:[
+  {k:'datum',l:'Datum',t:'date',req:1},{k:'uur',l:'Uur',t:'time'},
+  {k:'deelnemer',l:'Wie (deelnemer)',t:'ref',ref:'deelnemers'},{k:'wieAnders',l:'Of iemand anders (monitor, voorbijganger…)'},
+  {k:'soort',l:'Soort',t:'select',o:['Kleine verzorging','Val / ongeval','Fietsongeval','Ziek','Allergische reactie','Insectenbeet / teek','Andere']},
+  {k:'letsel',l:'Letsel / klachten',w:1},
+  {k:'wat',l:'Wat is er gebeurd (waar, hoe)',t:'area',w:1},
+  {k:'zorg',l:'Wat hebben we gedaan (verzorging, medicatie)',t:'area',w:1},
+  {k:'door',l:'Verzorgd door',t:'ref',ref:'monitoren'},
+  {k:'ouders',l:'Ouders verwittigd',t:'select',o:['Nee','Ja, telefonisch','Ja, bij het afhalen','Niet nodig']},
+  {k:'arts',l:'Dokter / ziekenhuis',t:'select',o:['Nee','Huisarts / wachtdienst','Spoed / ziekenhuis']},
+  {k:'verzekering',l:'Aangifte verzekering',t:'select',o:['Niet nodig','Nog te doen','Ingediend']},
+  {k:'foto',l:'Foto of document (letsel, attest dokter)',t:'photo',pdf:1,w:1}]};
+// evaluatie na het kamp
+SCHEMA.evaluaties={one:'evaluatie',fields:[
+  {k:'naam',l:'Ingevuld door',w:1},
+  {k:'rol',l:'Wie',t:'select',o:['Monitor','Ouder','Deelnemer','Andere']},
+  ...[['algemeen','Algemeen'],['kampplaats','Kampplaats / verblijf'],['eten','Eten'],['activiteiten','Activiteiten'],['begeleiding','Begeleiding'],['organisatie','Organisatie en communicatie']].map(([k,l])=>({k,l:l+' (score)',t:'select',o:['5 – heel goed','4 – goed','3 – oké','2 – matig','1 – slecht']})),
+  {k:'goed',l:'Wat was goed',t:'area',w:1},
+  {k:'beter',l:'Wat kan beter (één punt per regel)',t:'area',w:1},
+  {k:'idee',l:'Ideeën voor volgend jaar',t:'area',w:1}]};
 // materiaal dat mee moet (Solidaris, S-Sport, zelf)
 SCHEMA.materiaal={one:'materiaal',fields:[
   {k:'naam',l:'Wat',req:1,w:1},
@@ -846,8 +868,8 @@ const COLS=Object.keys(SCHEMA);
 const SCOPED=COLS.filter(c=>!SCHEMA[c].global);
 const phKey=col=>(SCHEMA[col]?.fields.find(f=>f.t==='photo')||{}).k;
 const MENU=[
-  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['aanwezig','Aanwezigheden'],['noodfiche','Noodfiche'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['attesten','Attesten'],['fietsen','Fietsen',1]]],
-  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['materiaal','Materiaallijst'],['mails','Mails']]],
+  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['ongevallen','EHBO-logboek'],['aanwezig','Aanwezigheden'],['noodfiche','Noodfiche'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['attesten','Attesten'],['fietsen','Fietsen',1]]],
+  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['materiaal','Materiaallijst'],['evaluaties','Evaluatie'],['mails','Mails']]],
   ['kalender','Kalender',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['locaties','Locatie']]],
   ['contacten','Contacten',[]],
   ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen'],['herinnering','Betalingsherinnering']]],
@@ -1724,6 +1746,151 @@ document.addEventListener('click',async e=>{
   if(ds.xmatwis){if(!zeker(t))return;for(const r of cur('materiaal'))if(r.ingepakt||r.terug)await patchRec('materiaal',r.id,{ingepakt:false,terug:false});render();return}
 });
 
+
+/* ---------- 8. kamp kopiëren naar een nieuw kamp (volgend jaar) ---------- */
+const KOPIE_DELEN=[['locaties','Locaties en kampplaats',1],['monitoren','Monitoren',0],['kamers','Kamers',1],['ploegen','Groepen (namen en kleuren)',1],['planning','Dagplanning',1],['activiteiten','Activiteiten',1],['maaltijden','Maaltijden',1],['ritten','Fietsritten',1],['taken','Takenlijst (weer op “nog te doen”)',1],['materiaal','Materiaallijst (vinkjes leeg)',1],['contacten','Contacten van dit kamp',1],['kalender','Datums in de kalender',1]];
+const isoDag=/^\d{4}-\d{2}-\d{2}$/;
+const schuif=(s,n)=>{const d=pd(s);if(!d)return s;d.setDate(d.getDate()+n);return iso(d)};
+function kopieOpen(){
+  const k=K();if(!k.id)return;const y=pd(k.start);let nStart='';if(y){const d=new Date(y);d.setFullYear(d.getFullYear()+1);nStart=iso(d)}
+  let naam=String(k.naam||'Kamp').replace(/\b(20\d\d)\b/,m=>String(+m+1));if(!/\b20\d\d\b/.test(naam)&&nStart)naam+=' '+nStart.slice(0,4);
+  const tel=c=>(SCHEMA[c].global?data[c].filter(r=>r.kamp===k.id):cur(c)).length;
+  $('#layer').innerHTML=`<div class="veil" id="veil"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kopT"><div class="bar2"><h3 id="kopT">Kopieer naar een nieuw kamp</h3><button type="button" class="btn small" id="shX">Sluit</button></div>
+  <p class="hint" style="margin:0">Je maakt een nieuw kamp met alles van <b>${esc(k.naam)}</b> wat je hieronder aanvinkt. Alle datums schuiven mee met de nieuwe startdatum. Deelnemers, medicatie, boekhouding, blog en logboek gaan niet mee.</p>
+  <div class="fields"><label class="fld wide"><span class="lbl">Naam van het nieuwe kamp</span><input id="kopNaam" value="${esc(naam)}"></label>
+   <label class="fld"><span class="lbl">Nieuwe eerste dag</span><input id="kopStart" type="date" value="${esc(nStart)}"></label></div>
+  <div class="list" style="gap:2px">${KOPIE_DELEN.map(([c,l,aan])=>{const n=tel(c);return `<label class="bed"><span><input type="checkbox" data-kopdeel="${c}" ${aan&&n?'checked':''} ${n?'':'disabled'}> ${esc(l)} <span class="hint" style="margin:0">(${n})</span></span></label>`}).join('')}</div>
+  <div class="actions"><span></span><button class="btn primary" id="kopGo">Maak het nieuwe kamp</button></div></div></div>`;
+}
+async function kopieMaak(){
+  const k=K();const naam=($('#kopNaam').value||'').trim();if(!naam){toast('Geef het nieuwe kamp een naam');return}
+  const start=$('#kopStart').value;const n=start&&k.start?Math.round((pd(start)-pd(k.start))/864e5):0;
+  const delen=[...document.querySelectorAll('[data-kopdeel]:checked')].map(x=>x.dataset.kopdeel);
+  const btn=$('#kopGo');btn.disabled=true;btn.textContent='Bezig met kopiëren…';
+  const zonderGm=o=>{if(!o||typeof o!=='object')return o;const c={...o};delete c.gemaild;return c};
+  const nk={...k};['id','aangemaakt','gewijzigd','voorbeeld','appelExtra'].forEach(x=>delete nk[x]);
+  nk.naam=naam;if(k.start)nk.start=schuif(k.start,n);if(k.eind)nk.eind=schuif(k.eind,n);
+  ['brief','attest','herinnering'].forEach(x=>{if(nk[x])nk[x]=zonderGm(nk[x])});
+  if(k.tussendoor){const t={};Object.entries(k.tussendoor).forEach(([d,v])=>t[isoDag.test(d)?schuif(d,n):d]=v);nk.tussendoor=t}
+  try{
+    const oud=k.id;const nid=await saveRec('kampen',null,nk);
+    const oudIds=new Set(SCOPED.flatMap(c=>data[c].filter(r=>r.kamp===oud).map(r=>r.id)));const kaart=new Map();
+    const zet=v=>{if(typeof v==='string'){if(isoDag.test(v))return schuif(v,n);if(kaart.has(v))return kaart.get(v);if(oudIds.has(v))return '';return v}
+      if(Array.isArray(v))return v.map(x=>typeof x==='string'&&!isoDag.test(x)&&(kaart.has(x)||oudIds.has(x))?kaart.get(x):zet(x)).filter(x=>x!==undefined&&x!=='');return v};
+    const volgorde=['locaties','monitoren','kamers','ploegen','planning','activiteiten','maaltijden','ritten','taken','materiaal','contacten','kalender'].filter(c=>delen.includes(c));
+    for(const c of volgorde){
+      const rs=SCHEMA[c].global?data[c].filter(r=>r.kamp===oud):data[c].filter(r=>r.kamp===oud);
+      for(const r of [...rs]){const o={};for(const [x,v] of Object.entries(r)){if(['id','kamp','aangemaakt','gewijzigd','voorbeeld','gemaild'].includes(x))continue;o[x]=(x==='dagen'&&Array.isArray(v))?v.map(d=>schuif(d,n)):zet(v)}
+        if(c==='taken')o.klaar='Nog te doen';if(c==='materiaal'){o.ingepakt=false;o.terug=false}
+        if(c==='monitoren'){delete o.kamer}
+        const id=await saveRec(c,null,{...o,kamp:nid});kaart.set(r.id,id)}}
+    closeForm();setKamp(nid);location.hash='#overzicht';render();toast(naam+' is aangemaakt');
+  }catch(e){toast('Kopiëren lukte niet');btn.disabled=false;btn.textContent='Maak het nieuwe kamp'}
+}
+
+/* ---------- 9. EHBO- en ongevallenlogboek ---------- */
+function logboekView(){
+  const list=cur('ongevallen').sort((a,b)=>((b.datum||'')+(b.uur||'')).localeCompare((a.datum||'')+(a.uur||''))||(b.aangemaakt||0)-(a.aangemaakt||0));
+  const wie=r=>r.deelnemer?nameOf('deelnemers',r.deelnemer):(r.wieAnders||'Onbekend');
+  const verz=list.filter(r=>r.verzekering==='Nog te doen').length,oud=list.filter(r=>!r.ouders||r.ouders==='Nee').length,k=K();
+  return header('EHBO-logboek','ongevallen')+
+  `<p class="hint">Noteer elke verzorging en elk ongeval: wie, wat, wanneer en wat jullie gedaan hebben. Handig voor de ouders, voor de verzekering en als iemand later vragen stelt. Gevoelige info: alleen voor de begeleiding.</p>
+  ${verz?`<div class="banner" style="margin:0 0 12px"><p><b>${verz} aangifte${verz===1?'':'s'} bij de verzekering nog te doen.</b></p></div>`:''}
+  ${list.length?`<div class="row" style="margin-bottom:12px"><span class="chip">${list.length} voorval${list.length===1?'':'len'}</span>${oud?`<span class="chip g">${oud} keer ouders nog niet verwittigd</span>`:''}<button class="btn small" data-briefprint="1">Afdrukken / PDF</button></div>
+  <div class="feed">${list.map(r=>{const p=get('deelnemers',r.deelnemer);const ernst=r.arts==='Spoed / ziekenhuis'?'r':r.arts&&r.arts!=='Nee'?'g':'';
+   return `<article class="post"><div class="row"><span class="chip ${ernst?ernst:'o'}">${esc(r.datum?fdl(r.datum):'')}${r.uur?' · '+esc(r.uur):''}</span>${r.soort?`<span class="chip">${esc(r.soort)}</span>`:''}${r.arts&&r.arts!=='Nee'?`<span class="chip ${ernst}">${esc(r.arts)}</span>`:''}${r.ouders&&r.ouders!=='Nee'?`<span class="chip k">Ouders: ${esc(r.ouders.replace(/^Ja, /,''))}</span>`:'<span class="chip g">Ouders nog niet verwittigd</span>'}${r.verzekering&&r.verzekering!=='Niet nodig'?`<span class="chip ${r.verzekering==='Ingediend'?'k':'r'}">Verzekering: ${esc(r.verzekering.toLowerCase())}</span>`:''}</div>
+    <h3>${p?pTag(p):''}${esc(wie(r))}${r.letsel?' – '+esc(r.letsel):''}</h3>
+    ${r.wat?`<div><div class="lbl">Wat is er gebeurd</div><div class="txt">${esc(r.wat)}</div></div>`:''}${r.zorg?`<div><div class="lbl">Wat hebben we gedaan${r.door?' ('+esc(nameOf('monitoren',r.door))+')':''}</div><div class="txt">${esc(r.zorg)}</div></div>`:''}
+    ${p&&p.noodcontact?`<div class="hint" style="margin:0">Noodcontact: ${telLink(p.noodcontact)}</div>`:''}
+    ${r.foto?`<div class="row"><a class="chip o" href="${esc(phSrc(r.foto))}" target="_blank" rel="noopener">${isPdf(r.foto)?'Document':'Foto'} openen ↗</a></div>`:''}
+    <div class="row"><button class="btn small" data-edit="ongevallen" data-id="${esc(r.id)}">Wijzig</button></div></article>`}).join('')}</div>
+  <div class="letters matprint"><article class="letter"><div class="ftitel" style="color:#da002f;font-weight:800;text-transform:uppercase">EHBO-logboek</div><div><b>${esc(k.naam||'')}</b>${k.start?' · '+esc([fdLang(k.start),fdLang(k.eind)].filter(Boolean).join(' – ')):''}</div>
+   <table class="ftab" style="margin-top:10px;table-layout:auto"><thead><tr><th>Wanneer</th><th>Wie</th><th>Wat / letsel</th><th>Verzorging</th><th>Ouders</th><th>Dokter</th><th>Verzekering</th></tr></thead><tbody>${[...list].reverse().map(r=>`<tr><td>${esc(fd(r.datum))} ${esc(r.uur||'')}</td><td>${esc(wie(r))}</td><td>${esc([r.soort,r.letsel,r.wat].filter(Boolean).join(' · '))}</td><td>${esc(r.zorg||'')}${r.door?' ('+esc(nameOf('monitoren',r.door))+')':''}</td><td>${esc(r.ouders||'Nee')}</td><td>${esc(r.arts||'Nee')}</td><td>${esc(r.verzekering||'')}</td></tr>`).join('')}</tbody></table></article></div>`
+  :empty('Nog niets genoteerd','Hopelijk blijft het zo! Noteer hier elke verzorging, val, ziekte of ongeval.',`<button class="btn primary" data-new="ongevallen">+ Eerste notitie</button>`)}`;
+}
+
+/* ---------- 10. evaluatie na het kamp ---------- */
+const EVAL_RUBR=[['algemeen','Algemeen'],['kampplaats','Kampplaats / verblijf'],['eten','Eten'],['activiteiten','Activiteiten'],['begeleiding','Begeleiding'],['organisatie','Organisatie en communicatie']];
+const EVAL_SCORE=['5 – heel goed','4 – goed','3 – oké','2 – matig','1 – slecht'];
+const evScore=v=>{const m=String(v||'').match(/^([1-5])/);return m?+m[1]:0};
+const ouderMails=()=>recipients('Alle deelnemers').mails;
+function evalVragen(){const k=K();return `Dag,\n\nBedankt dat jullie kind meeging op ${k.naam||'het kamp'}! We willen het volgend jaar nog beter doen en horen graag jullie mening.\n\nMag je kort antwoorden op deze mail?\n\n1. Hoe vond je kind het kamp, op een schaal van 1 tot 5?\n2. Wat vond je kind het leukst?\n3. Wat kan beter (kampplaats, eten, activiteiten, begeleiding, communicatie)?\n4. Komt je kind volgend jaar terug?\n5. Andere opmerkingen of ideeën?\n\nAlvast bedankt!\nDe begeleiding van ${k.naam||'het kamp'}`}
+function evalView(){
+  const list=cur('evaluaties').sort((a,b)=>(b.aangemaakt||0)-(a.aangemaakt||0));const mails=ouderMails();const k=K();
+  const gem=x=>{const s=list.map(r=>evScore(r[x])).filter(Boolean);return s.length?s.reduce((a,b)=>a+b,0)/s.length:0};
+  const best=new Set(cur('taken').map(r=>normN(r.titel)));
+  const punten=list.flatMap(r=>String(r.beter||'').split(/\n+/).map(x=>x.replace(/^[-•*\d.)\s]+/,'').trim()).filter(Boolean).map(t=>({t,van:r.naam||r.rol||''})));
+  const mt=`mailto:?bcc=${encodeURIComponent(mails.join(','))}&subject=${encodeURIComponent('Hoe was '+(k.naam||'het kamp')+'?')}&body=${encodeURIComponent(evalVragen())}`;
+  return header('Evaluatie','evaluaties')+
+  `<p class="hint">Na het kamp: laat elke monitor een evaluatie invullen, en typ de antwoorden van ouders hier ook in. Zet wat beter kan meteen als werkpunt in de takenlijst: wanneer je het kamp later kopieert naar volgend jaar, gaan die werkpunten mee.</p>
+  <div class="row" style="margin-bottom:12px">${mails.length?`<a class="btn" href="${esc(mt)}" target="_blank" rel="noopener">Vraag de ouders om feedback (${mails.length})</a>`:''}</div>
+  ${list.length?`<div class="panel"><h3>Gemiddelde score <span class="lbl">${list.length} evaluatie${list.length===1?'':'s'}</span></h3><div class="evscores">${EVAL_RUBR.map(([x,l])=>{const g=gem(x);return `<div class="evrij"><span>${esc(l)}</span><div class="xprog"><i style="width:${g/5*100}%;background:${g>=4?'var(--ok)':g>=3?'var(--gold)':'var(--red)'}"></i></div><b class="num">${g?g.toFixed(1).replace('.',','):'–'}</b></div>`}).join('')}</div></div>
+  ${punten.length?`<div class="panel" style="margin-top:12px"><h3>Wat kan beter <span class="lbl">${punten.length}</span></h3><div class="xlijst">${punten.map(p=>{const titel='Werkpunt: '+p.t.slice(0,120);const al=best.has(normN(titel));return `<div class="xtaak"><span class="xn">${esc(p.t)}<small>${esc(p.van)}</small></span>${al?'<span class="chip k">In takenlijst ✓</span>':`<button class="btn small" data-xwerkpunt="${esc(titel)}">→ Takenlijst</button>`}</div>`}).join('')}</div></div>`:''}
+  <div class="feed" style="margin-top:12px">${list.map(r=>`<article class="post"><div class="row"><span class="chip o">${esc(r.rol||'')}</span>${EVAL_RUBR.filter(([x])=>evScore(r[x])).map(([x,l])=>`<span class="chip">${esc(l)}: ${evScore(r[x])}/5</span>`).join('')}</div>
+   <h3>${esc(r.naam||'Anoniem')}</h3>${r.goed?`<div><div class="lbl">Wat was goed</div><div class="txt">${esc(r.goed)}</div></div>`:''}${r.beter?`<div><div class="lbl">Wat kan beter</div><div class="txt">${esc(r.beter)}</div></div>`:''}${r.idee?`<div><div class="lbl">Ideeën voor volgend jaar</div><div class="txt">${esc(r.idee)}</div></div>`:''}
+   <div class="row"><button class="btn small" data-edit="evaluaties" data-id="${esc(r.id)}">Wijzig</button></div></article>`).join('')}</div>`
+  :empty('Nog geen evaluaties','Vul na het kamp per monitor een evaluatie in, of typ de reacties van ouders over.')}`;
+}
+
+/* ---------- 11. blogbericht als mail naar de ouders (BCC, met foto's) ---------- */
+function blogMailTekst(r){const k=K();return [r.titel,r.datum?fdl(r.datum):'','',r.tekst||'','','Groetjes,','De begeleiding van '+(k.naam||'het kamp')].join('\n')}
+const blogOnderwerp=r=>(K().naam?K().naam+': ':'')+(r.titel||'Nieuws van het kamp');
+const blogMailto=r=>`mailto:?bcc=${encodeURIComponent(ouderMails().join(','))}&subject=${encodeURIComponent(blogOnderwerp(r))}&body=${encodeURIComponent(blogMailTekst(r))}`;
+async function verklein(blob){
+  try{const bm=await createImageBitmap(blob);const sc=Math.min(1,1600/Math.max(bm.width,bm.height));const c=document.createElement('canvas');c.width=Math.round(bm.width*sc);c.height=Math.round(bm.height*sc);
+    c.getContext('2d').drawImage(bm,0,0,c.width,c.height);return await new Promise(res=>c.toBlob(b=>res(b||blob),'image/jpeg',.82))}catch(e){return blob}
+}
+async function blogFotos(r){
+  const media=[...(Array.isArray(r.media)?r.media:[]),...(r.foto&&!isPdf(r.foto)?[r.foto]:[])];const out=[];
+  for(const m of media){if(out.length>=12)break;if(/video/.test(m.type||''))continue;const src=phSrc(m);if(!src)continue;
+    try{const b=await (await fetch(src)).blob();if(!/^image\//.test(b.type))continue;out.push(await verklein(b))}catch(e){}}
+  return out;
+}
+async function blogMailScript(id){
+  const r=get('blog',id);if(!r)return;const bcc=ouderMails();if(!bcc.length){toast('Nog geen e-mailadressen bij de deelnemers');return}
+  toast("Mail wordt klaargemaakt…");const fotos=await blogFotos(r);
+  const delen=[];for(const [i,b] of fotos.entries()){const b64=await blobB64(b);const st=[];for(let j=0;j<b64.length;j+=200000)st.push(b64.slice(j,j+200000));delen.push({naam:`foto-${String(i+1).padStart(2,'0')}.jpg`,st})}
+  const scr=`-- S-Sport Recreas: blogbericht "${String(r.titel||'').replace(/[\r\n"]/g,' ')}" als mail naar ${bcc.length} ouders
+-- Klik bovenaan dit venster op de knop ▶ (Voer uit).
+-- De ouders staan in BCC: ze zien elkaars adres niet. Er wordt niets verstuurd: jij kijkt na en klikt op versturen.
+
+set map to "/tmp/recreas-blog"
+do shell script "rm -rf " & quoted form of map & " && mkdir -p " & quoted form of map
+set bijlagen to {}
+${delen.map(d=>d.st.map(s=>`do shell script "printf %s " & quoted form of ${asStr(s)} & " >> " & quoted form of (map & "/${d.naam}.b64")`).join('\n')+`\ndo shell script "base64 -D -i " & quoted form of (map & "/${d.naam}.b64") & " -o " & quoted form of (map & "/${d.naam}")\nset end of bijlagen to (map & "/${d.naam}")`).join('\n')}
+set adressen to {${bcc.map(asStr).join(', ')}}
+
+tell application "Mail"
+\tactivate
+\tset m to make new outgoing message with properties {subject:${asStr(blogOnderwerp(r))}, content:${asStr(blogMailTekst(r))} & return & return, visible:true}
+\trepeat with a in adressen
+\t\ttell m to make new bcc recipient at end of bcc recipients with properties {address:(a as text)}
+\tend repeat
+\trepeat with p in bijlagen
+\t\tset f to (POSIX file (p as text)) as alias
+\t\ttell content of m to make new attachment with properties {file name:f} at after last paragraph
+\tend repeat
+end tell
+display dialog "De mail staat open in Mail met ${bcc.length} ouders in BCC${fotos.length?' en '+fotos.length+" foto's":''}. Kijk na en klik op versturen." buttons {"OK"} default button 1`;
+  const fn='Blog naar ouders - '+veilig(r.titel||'bericht')+'.applescript';
+  if(!await bewaarBestand(fn,new Blob([scr],{type:'text/plain;charset=utf-8'})))return;
+  try{await patchRec('blog',r.id,{gemaildOuders:Date.now()})}catch(e){}
+  setTimeout(()=>toast('Open '+fn+' in je map Downloads en klik op ▶'),300);
+}
+function blogMailKnoppen(r){
+  const n=ouderMails().length;if(!n)return '';
+  return `<button class="btn small primary" data-xblogmail="${esc(r.id)}" title="Eén mail naar alle ouders (BCC), met de foto's als bijlage. Werkt op een Mac met Mail.">✉ Mail naar ouders (${n})</button><a class="btn small" href="${esc(blogMailto(r))}" target="_blank" rel="noopener" data-xblogmailto="${esc(r.id)}">Mail zonder foto's</a>${r.gemaildOuders?`<span class="chip k">Gemaild op ${esc(fd(iso(new Date(r.gemaildOuders))))}</span>`:''}`;
+}
+
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button');if(!t)return;const ds=t.dataset;
+  if(ds.xkopie){kopieOpen();return}
+  if(t.id==='kopGo'){await kopieMaak();return}
+  if(ds.xwerkpunt){t.disabled=true;try{await saveRec('taken',null,{titel:ds.xwerkpunt,klaar:'Nog te doen',notities:'Uit de evaluatie'});toast('Toegevoegd aan de takenlijst')}catch(err){toast('Toevoegen lukte niet');t.disabled=false}return}
+  if(ds.xblogmail){t.disabled=true;try{await blogMailScript(ds.xblogmail)}finally{t.disabled=false}return}
+});
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-xblogmailto]');if(!a)return;const id=a.dataset.xblogmailto;setTimeout(()=>patchRec('blog',id,{gemaildOuders:Date.now()}).catch(()=>{}),400)});
+
 /* ---------- klikken en wijzigen ---------- */
 const zeker=t=>{if(t.dataset.zeker)return true;t.dataset.zeker='1';const o=t.textContent;t.textContent='Zeker? Klik nogmaals';setTimeout(()=>{if(t.isConnected){delete t.dataset.zeker;t.textContent=o}},3500);return false};
 document.addEventListener('click',async e=>{
@@ -1791,7 +1958,7 @@ dash(days){
   const nxt=data.kalender.filter(r=>(r.kamp===curKamp||!r.kamp)&&(r.tot||r.datum)>=today).sort((a,b)=>a.datum.localeCompare(b.datum)).slice(0,4);
   return `<section class="hero" style="margin-top:22px"><div class="row"><span class="chip o">${esc(k.type||'Kamp')}</span><span class="lbl">Gekozen kamp</span></div><h2>${esc(k.naam)}</h2>
     <div class="when">${esc([k.bestemming,k.start?fdl(k.start)+(k.eind&&k.eind!==k.start?' t/m '+fdl(k.eind):''):''].filter(Boolean).join(' · '))}</div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="count">${esc(when)}</span><button class="btn small" data-edit="kampen" data-id="${esc(k.id)}">Kamp aanpassen</button><button class="btn small" data-new="kampen">+ Nieuw kamp</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="count">${esc(when)}</span><button class="btn small" data-edit="kampen" data-id="${esc(k.id)}">Kamp aanpassen</button><button class="btn small" data-new="kampen">+ Nieuw kamp</button><button class="btn small" data-xkopie="1">Kopieer naar volgend jaar</button>
     ${k.noodnummer?`<span class="chip r">Nood: ${esc(k.noodnummer)}</span>`:''}${k.verantwoordelijke?`<span class="chip">Verantw.: ${esc(k.verantwoordelijke)}</span>`:''}</div></section>
   <div class="stats">
     <div class="stat"><div class="lbl">Deelnemers</div><div class="v num">${cur('deelnemers').length}</div></div>
@@ -1946,6 +2113,8 @@ attesten(){return attView()},
 herinnering(){return herView()},
 taken(){return takenView()},
 materiaal(){return materiaalView()},
+ongevallen(){return logboekView()},
+evaluaties(){return evalView()},
 ploegen(){
   const gs=cur('ploegen').sort(byName);const dl=cur('deelnemers').filter(actief).sort(byName);
   const zonder=dl.filter(p=>!ploegVan(p));
@@ -2052,10 +2221,10 @@ algvergaderingen(){return vergLijst('algvergaderingen')},
 blog(){
   const list=cur('blog').sort((a,b)=>(b.datum||'').localeCompare(a.datum||'')||(b.aangemaakt||0)-(a.aangemaakt||0));
   const reac=cur('reacties');
-  return header('Blog','blog')+(list.length?`<div class="feed">${list.map(r=>{const media=[...(Array.isArray(r.media)?r.media:[]),...(r.foto&&!isPdf(r.foto)?[r.foto]:[])];const rs=reac.filter(x=>x.post===r.id).sort((a,b)=>(a.tijd||0)-(b.tijd||0));requestNames(rs.map(x=>x.van));
+  return header('Blog','blog')+`<p class="hint">Het blog is voor de ouders. Elk bericht kun je met één klik als mail naar alle ouders sturen, met de foto's erbij. De ouders staan in BCC: ze zien elkaars adres niet.</p>`+(list.length?`<div class="feed">${list.map(r=>{const media=[...(Array.isArray(r.media)?r.media:[]),...(r.foto&&!isPdf(r.foto)?[r.foto]:[])];const rs=reac.filter(x=>x.post===r.id).sort((a,b)=>(a.tijd||0)-(b.tijd||0));requestNames(rs.map(x=>x.van));
     const share=[r.titel,r.tekst].filter(Boolean).join('\n\n');
     return `<article class="post">${media.length?gallery(media):''}<div class="lbl">${esc([r.datum?fdl(r.datum):'',r.auteur].filter(Boolean).join(' · '))}</div><h3>${esc(r.titel)}</h3>${r.tekst?`<div class="txt">${esc(r.tekst)}</div>`:''}
-    <div class="row"><button class="btn small" data-edit="blog" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copytxt="${esc(r.id)}">Kopieer tekst</button><a class="btn small" href="https://wa.me/?text=${encodeURIComponent(share.slice(0,1500))}" target="_blank" rel="noopener">Deel tekst via WhatsApp ↗</a></div>
+    <div class="row"><button class="btn small" data-edit="blog" data-id="${esc(r.id)}">Wijzig</button><button class="btn small" data-copytxt="${esc(r.id)}">Kopieer tekst</button><a class="btn small" href="https://wa.me/?text=${encodeURIComponent(share.slice(0,1500))}" target="_blank" rel="noopener">Deel tekst via WhatsApp ↗</a>${blogMailKnoppen(r)}</div>
     <div class="reacts">${rs.map(x=>`<div class="react"><b>${esc(who(x.van))}</b> ${esc(x.tekst)}<span class="hint"> · ${esc(ago(x.tijd))}</span></div>`).join('')}
     <form class="reactForm" data-post="${esc(r.id)}"><input class="keep search" id="ri-${esc(r.id)}" placeholder="Schrijf een reactie…" value="${esc(drafts['ri-'+r.id]||'')}" autocomplete="off"><button class="btn small">Plaats</button></form></div></article>`}).join('')}</div>`
   :empty('Nog geen blogberichten',"Schrijf een verslag van de dag met foto's of een filmpje, zodat iedereen kan meevolgen."));
@@ -2111,6 +2280,8 @@ function tiles(){
     herinnering:[k.bijdrage?cur('deelnemers').filter(r=>actief(r)&&num(r.betaald)<num(k.bijdrage)).length:0,'nog te betalen'],
     taken:[cur('taken').filter(r=>r.klaar!=='Klaar').length,'open'],
     materiaal:[cur('materiaal').filter(r=>!r.ingepakt).length,'in te pakken'],
+    ongevallen:[cur('ongevallen').length,'genoteerd'],
+    evaluaties:[cur('evaluaties').length,'evaluaties'],
     vergaderingen:[cur('vergaderingen').length,cur('vergaderingen').filter(r=>r.datum>=today).length+' gepland'],
     blog:[cur('blog').length,'berichten'],
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
@@ -2452,6 +2623,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-2158 -->
+<!-- versie 20261126-2234 -->
 </body>
 </html>
