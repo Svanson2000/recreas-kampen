@@ -409,6 +409,48 @@ table.bal{min-width:520px}
 details.panel>summary{cursor:pointer}
 .lwrap .lacts{margin-top:6px}
 @media (max-width:520px){.letter{padding:22px 18px;font-size:12px}}
+/* extra onderdelen */
+.letter.nood .ftitel,.letter.attest .ftitel{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:.04em;color:#da002f;text-transform:uppercase;margin:6px 0 8px}
+.letter.nood .fsub{font-weight:700;margin:14px 0 6px}
+@media (min-width:721px){.subtabs{flex-wrap:wrap;overflow:visible}}
+.xchips{gap:6px;margin:0 0 10px;flex-wrap:wrap;align-items:center}
+.xchips .chip{border:1px solid transparent;cursor:pointer;font-size:13px;padding:6px 12px}
+.xnieuw{display:inline-flex;gap:6px;align-items:center}
+.xnieuw input{width:200px;max-width:52vw;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:13px}
+.xteller{margin:0 0 12px;display:flex;flex-direction:column;gap:8px;border-left:4px solid var(--orange)}
+.xteller.vol{border-left-color:var(--ok)}
+.xteller .num{font-size:22px}
+.xmist{font-size:14px;line-height:1.5}
+.xprog{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden}.xprog i{display:block;height:100%;background:var(--ok);transition:width .2s}
+.xlijst{display:flex;flex-direction:column;gap:4px}
+.xrijwrap{display:flex;gap:4px;align-items:stretch}.xrijwrap .xrij{flex:1}
+.xrij{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface2);border:1px solid transparent;border-radius:10px;padding:10px 12px;min-height:52px;color:var(--fg);font:inherit;cursor:pointer}
+.xrij.aan{background:color-mix(in srgb,var(--ok) 14%,var(--surface));border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.xbox{flex:none;width:28px;height:28px;border-radius:8px;border:2px solid color-mix(in srgb,var(--muted) 60%,transparent);display:grid;place-items:center;font-weight:800;color:#fff;background:var(--surface);font-size:16px;padding:0;cursor:pointer;line-height:1}
+.aan>.xbox,.xbox.aan{background:var(--ok);border-color:var(--ok)}
+.xn{flex:1;min-width:0}
+.xn small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.xrij .hint{margin:0;white-space:nowrap;font-size:12.5px}
+.xslot{margin-bottom:12px}
+.xtaak{display:flex;align-items:center;gap:12px;background:var(--surface2);border-radius:10px;padding:8px 10px}
+.xtaak.klaar .xn b{text-decoration:line-through;color:var(--muted)}
+.xkop{margin:16px 0 8px;font-size:15px}
+.xklaar summary{cursor:pointer}
+.xlaat{color:var(--red);font-weight:700}
+.xherrij,.xattrij{gap:6px;flex-wrap:wrap}
+.xherrij .xn{white-space:normal}
+.xattn{flex:1;min-width:0;display:flex;gap:6px;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xpre{white-space:pre-wrap;background:var(--surface2);border-radius:10px;padding:12px;font-size:14px;line-height:1.5}
+.letter a{color:inherit}
+.nkop{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:6px}
+.nnood{text-align:right;font-size:12px}.nbig{font-size:18px;font-weight:800;color:#da002f}
+.nall{color:#a8002a}
+.ntab{table-layout:auto}.ntab td,.ntab th{vertical-align:top;height:auto}
+.ncon th{width:30%}
+.nvoet{font-size:10.5px;color:#777;margin-top:10px}
+.ateken{margin-top:44px;width:280px;max-width:100%}.anoot{font-size:11px;color:#666;margin-top:26px}
+@media (max-width:640px){.ntab thead{display:none}.ntab,.ntab tbody,.ntab tr,.ntab td{display:block;width:100%}.ntab tr{border:1px solid #9a9a9a;border-radius:6px;margin-bottom:6px;overflow:hidden}.ntab td{display:flex;gap:8px;border:0!important;border-bottom:1px solid #eee!important}.ntab td::before{content:attr(data-l);flex:none;width:96px;color:#777;font-size:11px}.nkop{flex-direction:column}.nnood{text-align:left}}
+@media print{.ntab thead{display:table-header-group}.ntab tr{break-inside:avoid}}
 @media print{body *{visibility:hidden!important}.letters,.letters *{visibility:visible!important}.letters{position:absolute;left:0;top:0;width:100%;gap:0}.letter{box-shadow:none;border:0;border-radius:0;padding:0;break-after:page}.lacts,.letters .empty{display:none!important}.letter mark{background:none}}
 @media (min-width:721px){nav.tabs{gap:2px!important}nav.tabs a,nav.tabs a.hometab{padding-left:10px!important;padding-right:10px!important}}
 .sheet.groot{width:100%;border-left:0;padding-left:max(18px,calc((100% - 1100px)/2));padding-right:max(18px,calc((100% - 1100px)/2))}
@@ -783,15 +825,22 @@ const SCHEMA={
 };
 // algemene vergaderingen: los van een kamp, zelfde velden als de kampvergaderingen
 SCHEMA.algvergaderingen={one:'vergadering',global:1,fields:SCHEMA.vergaderingen.fields};
+// takenlijst voor de voorbereiding en vinkjes (aanwezigheden, medicatie gegeven)
+SCHEMA.taken={one:'taak',fields:[
+  {k:'titel',l:'Taak',req:1,w:1},
+  {k:'wie',l:'Wie doet het',t:'ref',ref:'monitoren'},{k:'deadline',l:'Klaar tegen',t:'date'},
+  {k:'klaar',l:'Status',t:'select',o:['Nog te doen','Bezig','Klaar']},
+  {k:'notities',l:'Notities',t:'area',w:1}]};
+SCHEMA.afvink={one:'vinkje',hidden:1,fields:[]};
 const COLS=Object.keys(SCHEMA);
 const SCOPED=COLS.filter(c=>!SCHEMA[c].global);
 const phKey=col=>(SCHEMA[col]?.fields.find(f=>f.t==='photo')||{}).k;
 const MENU=[
-  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['fietsen','Fietsen',1]]],
-  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['mails','Mails']]],
+  ['deelnemers','Deelnemers',[['deelnemers','Deelnemerslijst'],['leden','Algemene lijst'],['medicatie','Medicatiefiches'],['medronde','Medicatie geven'],['aanwezig','Aanwezigheden'],['noodfiche','Noodfiche'],['kamers','Kamerverdeling'],['ploegen','Groepsverdeling'],['brief','Uitnodigingsbrief'],['attesten','Attesten'],['fietsen','Fietsen',1]]],
+  ['monitoren','Monitoren',[['monitoren','Monitorenlijst'],['activiteiten','Activiteitenverdeling'],['ritten','Fietsritten',1],['vergaderingen','Vergaderingen'],['taken','Takenlijst'],['mails','Mails']]],
   ['kalender','Kalender',[['kalender','Kalender'],['planning','Dagplanning'],['maaltijden','Maaltijden'],['locaties','Locatie']]],
   ['contacten','Contacten',[]],
-  ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen']]],
+  ['boekhouding','Boekhouding',[['boekhouding','Balans'],['rekeningen','Rekeningen'],['herinnering','Betalingsherinnering']]],
   ['socials','Socials',[['blog','Blog'],['chat','WhatsApp']]],
   ['algvergaderingen','Algemene vergadering',[]]];
 const TABS=[['overzicht','Start'],...MENU.flatMap(g=>g[2].length?g[2]:[[g[0],g[1]]])];
@@ -1228,7 +1277,7 @@ function docxBrief(m){
     m.delen.map(d=>d.t==='l'?d.r.map((x,i)=>docxPara(['•\t'+x],{ind:1,after:i===d.r.length-1?200:0})).join(''):docxPara(d.r,{jc:'both'})).join('');
 }
 function maakDocx(models){
-  docxPic=0;const body=models.map(m=>m.fiche?docxFiche(m.fiche):docxBrief(m)).join('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+  docxPic=0;const body=models.map(m=>m.attest?docxAttest(m):m.fiche?docxFiche(m.fiche):docxBrief(m)).join('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1417" w:bottom="1134" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const png=Uint8Array.from(atob(BRIEF_LOGO.split(',')[1]),ch=>ch.charCodeAt(0));
   return maakZip([
@@ -1255,49 +1304,11 @@ async function blobB64(b){const u=new Uint8Array(await b.arrayBuffer());let s=''
 async function briefMailScript(){
   const ps=briefGekozen().filter(p=>p&&p.email);if(!ps.length){toast('Niemand met een e-mailadres gekozen');return}
   toast('Mails worden klaargemaakt…');
-  const fiche=ficheAan(),regels=[];const kn=(K().naam||'kamp').replace(/[\\/:*?"<>|]/g,'');
-  for(const [i,p] of ps.entries()){
-    let bijlage='""',bestand='""';
-    if(fiche){const blob=maakDocx([briefModel(p),{fiche:ficheModel(p)}]);bijlage=asStr(await blobB64(blob));bestand=asStr(String(i+1).padStart(2,'0')+' Brief '+kn+' - '+p.naam.replace(/[\\/:*?"<>|]/g,'')+'.docx')}
-    regels.push(`set end of lijst to {${asStr(p.email)}, ${asStr(briefOnderwerp(p))}, ${asStr(briefMailBody(p))}, ${bestand}, ${bijlage}}`)}
-  const scr=`-- S-Sport Recreas: ${ps.length} mail${ps.length===1?'':'s'} klaarzetten in Mail voor ${kn}
--- Klik bovenaan dit venster op de knop ▶ (Voer uit).
--- De eerste keer vraagt je Mac of Scriptbewerker Mail mag bedienen: klik op OK.
--- Er wordt niets verstuurd: elke mail opent in Mail, jij kijkt na en klikt op versturen.
-
-set map to "/tmp/recreas-brieven"
-do shell script "rm -rf " & quoted form of map & " && mkdir -p " & quoted form of map
-set lijst to {}
-${regels.join('\n')}
-
-set klaar to {}
-repeat with r in lijst
-\tset pad to ""
-\tif (item 4 of r) is not "" then
-\t\tset pad to map & "/" & (item 4 of r)
-\t\tdo shell script "printf %s " & quoted form of (item 5 of r) & " | base64 -D > " & quoted form of pad
-\tend if
-\tset end of klaar to {item 1 of r, item 2 of r, item 3 of r, pad}
-end repeat
-
-tell application "Mail"
-\tactivate
-\trepeat with r in klaar
-\t\tset m to make new outgoing message with properties {subject:(item 2 of r), content:(item 3 of r) & return & return, visible:true}
-\t\ttell m to make new to recipient at end of to recipients with properties {address:(item 1 of r)}
-\t\tif (item 4 of r) is not "" then
-\t\t\tset f to (POSIX file (item 4 of r)) as alias
-\t\t\ttell content of m to make new attachment with properties {file name:f} at after last paragraph
-\t\tend if
-\t\tdelay 0.6
-\tend repeat
-end tell
-display dialog "Klaar: ${ps.length} mail${ps.length===1?' staat':'s staan'} open in Mail. Kijk ze na en klik telkens op versturen." buttons {"OK"} default button 1`;
-  const blob=new Blob([scr],{type:'text/plain;charset=utf-8'});const fn='Mails klaarzetten - '+kn+'.applescript';
-  if(downloads){try{await downloads.save({filename:fn,data:blob})}catch(e){if(e&&e.code==='declined')return;toast('Downloaden lukte niet');return}}else saveFile(fn,blob);
+  const fiche=ficheAan(),kn=knaam();
+  const items=ps.map((p,i)=>({email:p.email,onderwerp:briefOnderwerp(p),tekst:briefMailBody(p),...(fiche?{blob:maakDocx([briefModel(p),{fiche:ficheModel(p)}]),bestand:String(i+1).padStart(2,'0')+' Brief '+kn+' - '+p.naam+'.docx'}:{})}));
+  if(!await macMail(items,kn))return;
   const k=K(),b=k.brief||{},gm={...(b.gemaild||{})};ps.forEach(p=>gm[p.id]=Date.now());
   try{await patchRec('kampen',k.id,{brief:{...b,gemaild:gm}})}catch(e){}
-  setTimeout(()=>toast('Open '+fn+' in je map Downloads en klik op ▶'),300);
 }
 function briefMailPanel(kies){
   const ps=kies.filter(Boolean);if(!ps.length)return '';const gm=briefGemaild();
@@ -1343,6 +1354,329 @@ function briefView(){
   ${briefMailPanel(kies)}<div class="letters">${kies.map(p=>{const m=briefModel(p);return `<div class="lwrap">${briefHTML(m)}${ficheAan()?ficheHTML(ficheModel(p)):''}</div>`}).join('')||empty('Geen brieven gekozen','Vink hiernaast de deelnemers aan die een brief krijgen.')}</div>
   </div></div>`;
 }
+
+/* ===================== extra: aanwezigheden, medicatie geven, noodfiche, attesten, betalingsherinnering, takenlijst ===================== */
+const veilig=s=>String(s||'').replace(/[\\/:*?"<>|]/g,'');
+const knaam=()=>veilig(K().naam||'kamp');
+const fdJaar=s=>{const d=pd(s);return d?d.getDate()+' '+MAAND[d.getMonth()]+' '+d.getFullYear():''};
+const tijdVan=ts=>{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const MIST='\u0001…\u0002';
+async function bewaarBestand(fn,blob){
+  if(downloads){try{await downloads.save({filename:fn,data:blob})}catch(e){if(e&&e.code==='declined')return false;toast('Downloaden lukte niet');return false}}else saveFile(fn,blob);
+  return true;
+}
+/* één AppleScript dat in Mail op de Mac alle mails klaarzet. items: {email,onderwerp,tekst,bestand?,blob?} */
+async function macMail(items,titel){
+  const regels=[];
+  for(const it of items){let bijlage='""',bestand='""';
+    if(it.blob){bijlage=asStr(await blobB64(it.blob));bestand=asStr(veilig(it.bestand))}
+    regels.push(`set end of lijst to {${asStr(it.email)}, ${asStr(it.onderwerp)}, ${asStr(it.tekst)}, ${bestand}, ${bijlage}}`)}
+  const n=items.length;
+  const scr=`-- S-Sport Recreas: ${n} mail${n===1?'':'s'} klaarzetten in Mail voor ${titel}
+-- Klik bovenaan dit venster op de knop ▶ (Voer uit).
+-- De eerste keer vraagt je Mac of Scriptbewerker Mail mag bedienen: klik op OK.
+-- Er wordt niets verstuurd: elke mail opent in Mail, jij kijkt na en klikt op versturen.
+
+set map to "/tmp/recreas-brieven"
+do shell script "rm -rf " & quoted form of map & " && mkdir -p " & quoted form of map
+set lijst to {}
+${regels.join('\n')}
+
+set klaar to {}
+repeat with r in lijst
+\tset pad to ""
+\tif (item 4 of r) is not "" then
+\t\tset pad to map & "/" & (item 4 of r)
+\t\tdo shell script "printf %s " & quoted form of (item 5 of r) & " | base64 -D > " & quoted form of pad
+\tend if
+\tset end of klaar to {item 1 of r, item 2 of r, item 3 of r, pad}
+end repeat
+
+tell application "Mail"
+\tactivate
+\trepeat with r in klaar
+\t\tset m to make new outgoing message with properties {subject:(item 2 of r), content:(item 3 of r) & return & return, visible:true}
+\t\ttell m to make new to recipient at end of to recipients with properties {address:(item 1 of r)}
+\t\tif (item 4 of r) is not "" then
+\t\t\tset f to (POSIX file (item 4 of r)) as alias
+\t\t\ttell content of m to make new attachment with properties {file name:f} at after last paragraph
+\t\tend if
+\t\tdelay 0.6
+\tend repeat
+end tell
+display dialog "Klaar: ${n} mail${n===1?' staat':'s staan'} open in Mail. Kijk ze na en klik telkens op versturen." buttons {"OK"} default button 1`;
+  const fn='Mails klaarzetten - '+veilig(titel)+'.applescript';
+  if(!await bewaarBestand(fn,new Blob([scr],{type:'text/plain;charset=utf-8'})))return false;
+  setTimeout(()=>toast('Open '+fn+' in je map Downloads en klik op ▶'),300);
+  return true;
+}
+const macUitleg=bijlage=>`<ol class="hint"><li>Klik op de knop: er komt één bestand in je map Downloads.</li><li>Dubbelklik op dat bestand: het opent in Scriptbewerker. Klik daar op <b>▶</b>.</li><li>Mail opent alle mails, elk met de juiste naam en het eigen adres${bijlage?' en de eigen bijlage':''}. Kijk na en klik telkens op versturen.</li></ol>`;
+
+/* gedeelde dagkeuze */
+let xDag=null,xKampDag='',xMoment='',attSel=null,xWie='';
+function kampDagOf(){
+  if(xKampDag!==curKamp){xKampDag=curKamp;xDag=null;xMoment='';attSel=null;xWie=''}
+  const ds=kampDagen(),t=iso(new Date());if(!xDag||(ds.length&&!ds.includes(xDag)))xDag=ds.includes(t)?t:(ds[0]||t);return xDag;
+}
+const dagRij=()=>{const ds=kampDagen(),d=kampDagOf();return ds.length>1?`<div class="row xchips" role="group" aria-label="Dag">${ds.map(x=>`<button class="chip${x===d?' o':''}" data-xdag="${x}" aria-pressed="${x===d}">${esc(fd(x))}</button>`).join('')}</div>`:''};
+
+/* vinkjes: één record per vinkje, zodat meerdere monitoren tegelijk kunnen afvinken */
+const vinkMap=(soort,dag)=>{const m=new Map();cur('afvink').forEach(r=>{if(r.soort===soort&&r.dag===dag)m.set(r.sleutel,r)});return m};
+const vinkBezig=new Set();
+async function zetVink(soort,dag,sleutel,aan){
+  const id=soort+'|'+dag+'|'+sleutel;if(vinkBezig.has(id))return;vinkBezig.add(id);
+  try{const rs=cur('afvink').filter(r=>r.soort===soort&&r.dag===dag&&r.sleutel===sleutel);
+    if(aan){if(!rs.length)await saveRec('afvink',null,{soort,dag,sleutel,ts:Date.now()})}
+    else for(const r of rs)await delRec('afvink',r.id)}
+  catch(e){toast('Bewaren lukte niet')}finally{vinkBezig.delete(id)}
+}
+
+/* ---------- 1. aanwezigheden ---------- */
+const APPEL_STD=['Vertrek','Ochtend','Middag','Avond','Terugkeer'];
+const appelMomenten=()=>[...APPEL_STD,...(K().appelExtra||[])];
+const appelPs=()=>cur('deelnemers').filter(actief).sort(byName);
+function aanwezigView(){
+  const d=kampDagOf(),moms=appelMomenten();if(!moms.includes(xMoment))xMoment=moms[0];
+  const ps=appelPs(),vm=vinkMap('appel',d);const aan=p=>vm.get(xMoment+'|'+p.id);
+  const tel=m=>ps.filter(p=>vm.has(m+'|'+p.id)).length;
+  const n=tel(xMoment),mist=ps.filter(p=>!aan(p));
+  return header('Aanwezigheden','')+
+  `<p class="hint">Tel je groep: kies de dag en het moment en tik iedereen aan die er is. Wie nog ontbreekt, staat bovenaan in het vak. Alle monitoren zien dezelfde lijst.</p>`+dagRij()+
+  `<div class="row xchips" role="group" aria-label="Moment">${moms.map(m=>{const c=tel(m);return `<button class="chip${m===xMoment?' o':''}" data-xmom="${esc(m)}" aria-pressed="${m===xMoment}">${esc(m)}${c?` · ${c}/${ps.length}`:''}</button>`}).join('')}
+   <span class="xnieuw"><input id="xmomIn" placeholder="Eigen moment, bv. Zwembad" aria-label="Eigen moment"><button class="btn small" data-xnieuwmom="1">+ Voeg toe</button></span></div>`+
+  (ps.length?`<div class="panel xteller${mist.length?'':' vol'}"><div><b class="num">${n} / ${ps.length}</b> aanwezig · ${esc(xMoment)} · ${esc(fd(d))}</div>
+    <div class="xprog"><i style="width:${Math.round(n/ps.length*100)}%"></i></div>
+    <div class="xmist">${mist.length?`Ontbreekt nog (${mist.length}): ${mist.map(p=>`<b>${esc(p.naam)}</b>`).join(', ')}`:'<b>Iedereen is er ✓</b>'}</div>
+    <div class="row"><button class="btn small primary" data-xalle="1" ${mist.length?'':'disabled'}>Iedereen aanwezig</button><button class="btn small" data-xwis="1" ${n?'':'disabled'}>Wis dit moment</button>${(K().appelExtra||[]).includes(xMoment)?`<button class="btn small" data-xmomweg="1">Verwijder moment “${esc(xMoment)}”</button>`:''}</div></div>
+   <div class="xlijst">${ps.map(p=>{const v=aan(p);return `<button class="xrij${v?' aan':''}" data-xappel="${esc(p.id)}" aria-pressed="${!!v}"><span class="xbox" aria-hidden="true">${v?'✓':''}</span><span class="xn">${pTag(p)}${esc(p.naam)}</span><span class="hint">${v?'om '+tijdVan(v.ts):'ontbreekt'}</span></button>`}).join('')}</div>`
+  :empty('Nog geen deelnemers','Voeg eerst deelnemers toe aan dit kamp.'));
+}
+
+/* ---------- 2. medicatie geven ---------- */
+function medTijd(x){x=String(x).trim();const m=x.match(/^(\d{1,2})\s*(?:[:.hu]\s*(\d{2})?)?\s*(?:uur)?$/i);if(m&&+m[1]<24)return String(+m[1]).padStart(2,'0')+':'+(m[2]||'00');return x.charAt(0).toUpperCase()+x.slice(1)}
+const medNodig=s=>/nood|nodig|pijn|koorts|klacht|aanval/i.test(s);
+function medSlots(s){const t=String(s||'').trim();if(!t)return ['Tijdstip niet ingevuld'];if(medNodig(t))return ['Indien nodig'];
+  return [...new Set(t.split(/\s*(?:,|;|\/|\+|\n|\ben\b)\s*/i).map(medTijd).filter(Boolean))]}
+function medVolg(s){if(/^\d\d:\d\d$/.test(s))return s;const l=s.toLowerCase();
+  if(l==='indien nodig')return '99';if(l==='tijdstip niet ingevuld')return '98';
+  if(/ontbijt|ochtend|morgen|opstaan|nuchter/.test(l))return '08:00';if(/namiddag|vieruur|tussendoor/.test(l))return '16:00';
+  if(/middag|lunch/.test(l))return '12:30';if(/avond|diner|souper/.test(l))return '19:00';if(/slapen|bed|nacht/.test(l))return '21:30';
+  if(/eten|maaltijd/.test(l))return '12:31';return '97'}
+function medrondeView(){
+  const d=kampDagOf();const act=new Set(cur('deelnemers').filter(actief).map(p=>p.id));
+  const meds=cur('medicatie').filter(r=>act.has(r.deelnemer));const vm=vinkMap('med',d);const groepen={};
+  meds.forEach(r=>medSlots(r.momenten).forEach(s=>(groepen[s]=groepen[s]||[]).push(r)));
+  const slots=Object.keys(groepen).sort((a,b)=>medVolg(a).localeCompare(medVolg(b))||a.localeCompare(b,'nl'));
+  const moet=slots.filter(s=>s!=='Indien nodig').flatMap(s=>groepen[s].map(r=>r.id+'|'+s));const gedaan=moet.filter(x=>vm.has(x)).length;
+  const pn=r=>nameOf('deelnemers',r.deelnemer);
+  return header('Medicatie geven','')+
+  `<p class="hint">Per tijdstip wie wat moet krijgen. Vink af zodra het gegeven is: zo vergeet niemand iets en krijgt niemand iets twee keer. De tijdstippen komen uit de medicatiefiches (veld “Wanneer”, bv. <i>08:00, 20:00</i> of <i>bij het ontbijt</i>).</p>`+dagRij()+
+  (meds.length?`<div class="panel xteller${gedaan===moet.length?' vol':''}"><div><b class="num">${gedaan} / ${moet.length}</b> gegeven · ${esc(fdl(d))}</div><div class="xprog"><i style="width:${moet.length?Math.round(gedaan/moet.length*100):100}%"></i></div></div>`+
+   slots.map(s=>{const rs=[...groepen[s]].sort((a,b)=>pn(a).localeCompare(pn(b),'nl'));const k=rs.filter(r=>vm.has(r.id+'|'+s)).length;
+    return `<div class="panel xslot"><div class="head" style="margin:0 0 8px"><h3 style="margin:0;flex:1">${esc(s)}</h3><span class="lbl">${s==='Indien nodig'?k+' keer gegeven':k+' / '+rs.length}</span></div>
+    ${s==='Tijdstip niet ingevuld'?'<p class="hint">Vul bij deze medicatie in wanneer ze genomen moet worden.</p>':''}
+    <div class="xlijst">${rs.map(r=>{const p=get('deelnemers',r.deelnemer);const key=r.id+'|'+s;const v=vm.get(key);
+     return `<div class="xrijwrap"><button class="xrij${v?' aan':''}" data-xmed="${esc(key)}" aria-pressed="${!!v}"><span class="xbox" aria-hidden="true">${v?'✓':''}</span><span class="xn">${pTag(p)}<b>${esc(p?p.naam:'Onbekend')}</b> · ${esc(r.middel||'')} ${esc(r.dosis||'')}<small>${esc([r.toediening,r.bewaren,r.notities].filter(Boolean).join(' · '))}</small></span><span class="hint">${v?'gegeven om '+tijdVan(v.ts):''}</span></button><button class="btn small" data-edit="medicatie" data-id="${esc(r.id)}" aria-label="Medicatie van ${esc(p?p.naam:'')} wijzigen">✎</button></div>`}).join('')}</div></div>`}).join('')
+  :empty('Nog geen medicatie','Vul eerst de medicatiefiches in. Daarna verschijnt hier per tijdstip wie wat moet krijgen.',`<a class="btn primary" href="#medicatie">Naar medicatiefiches</a>`));
+}
+
+/* ---------- 3. noodfiche ---------- */
+const telLink=s=>esc(s).replace(/(\+?\d[\d\s./-]{6,}\d)/g,m=>`<a href="tel:${m.replace(/[^\d+]/g,'')}">${m}</a>`);
+function leeftijd(geb,op){const g=pd(geb),o=pd(op)||new Date();if(!g)return '';let a=o.getFullYear()-g.getFullYear();if(o.getMonth()<g.getMonth()||(o.getMonth()===g.getMonth()&&o.getDate()<g.getDate()))a--;return a>=0&&a<120?a+' jaar':''}
+function noodView(){
+  const k=K(),ps=cur('deelnemers').filter(actief).sort(byName);
+  const meds={};cur('medicatie').forEach(r=>(meds[r.deelnemer]=meds[r.deelnemer]||[]).push(r));
+  const cs=data.contacten.filter(c=>!c.kamp||c.kamp===curKamp);const mons=cur('monitoren').sort(byName);const loc=briefLoc({});
+  const zonder=ps.filter(p=>!p.noodcontact).length;
+  return header('Noodfiche','')+
+  `<p class="hint">Alles wat je bij een noodgeval nodig hebt op één blad: druk het af om mee te nemen of open het op je gsm. Tik op een nummer om te bellen. Gevoelige info: alleen voor de begeleiding.</p>
+  ${zonder?`<div class="banner" style="margin:0 0 12px"><p><b>${zonder} deelnemer${zonder===1?'':'s'} zonder noodcontact.</b> Vul het in bij de deelnemerslijst.</p></div>`:''}
+  <div class="row lacts" style="margin-bottom:10px"><button class="btn primary" data-briefprint="1">Afdrukken / PDF</button></div>
+  <div class="letters"><article class="letter nood">
+   <div class="nkop"><div><div class="ftitel" style="margin:0 0 2px">Noodfiche</div><b>${esc(k.naam||'')}</b>${k.start?' · '+esc([fdLang(k.start),fdLang(k.eind)].filter(Boolean).join(' – ')):''}${loc?`<div>${esc(loc.naam)}${loc.adres?', '+esc(loc.adres):''}</div>`:''}</div>
+    <div class="nnood">${k.noodnummer?`<div>Noodnummer begeleiding</div><div class="nbig">${telLink(k.noodnummer)}</div>`:''}<div>Hulpdiensten <b><a href="tel:112">112</a></b> · Antigif <b><a href="tel:070245245">070 245 245</a></b></div></div></div>
+   ${cs.length||mons.length?`<div class="fsub">Belangrijke nummers</div><table class="ftab ncon"><tbody>${cs.map(c=>`<tr><th>${esc(c.rol)}</th><td>${esc(c.naam||'')}</td><td>${telLink(c.telefoon||'')}</td></tr>`).join('')}${mons.map(m=>`<tr><th>${esc(m.functie||'Monitor')}</th><td>${esc(m.naam)}</td><td>${telLink(m.gsm||'')}</td></tr>`).join('')}</tbody></table>`:''}
+   <div class="fsub">Deelnemers (${ps.length})</div>
+   ${ps.length?`<table class="ftab ntab"><thead><tr><th>Naam</th><th>Leeftijd</th><th>Noodcontact</th><th>Allergieën / dieet</th><th>Medicatie</th><th>Groep · kamer</th></tr></thead><tbody>${ps.map(p=>{const g=ploegVan(p);
+    return `<tr><td data-l="Naam"><b>${esc(p.naam)}</b></td><td data-l="Leeftijd">${esc(leeftijd(p.geboortedatum,k.start))||'–'}</td><td data-l="Noodcontact">${p.noodcontact?telLink(p.noodcontact):'<mark>ontbreekt</mark>'}</td><td data-l="Allergieën / dieet">${p.dieet?`<b class="nall">${esc(p.dieet)}</b>`:'–'}</td><td data-l="Medicatie">${(meds[p.id]||[]).map(r=>esc([r.middel,r.dosis,r.momenten].filter(Boolean).join(' · '))).join('<br>')||'–'}</td><td data-l="Groep · kamer">${esc([g?g.naam:'',p.kamer?nameOf('kamers',p.kamer):''].filter(Boolean).join(' · '))||'–'}</td></tr>`}).join('')}</tbody></table>`:'<p>Nog geen deelnemers.</p>'}
+   <p class="nvoet">Gemaakt op ${esc(fdJaar(iso(new Date())))} · S-Sport//Recreas</p>
+  </article></div>`;
+}
+
+/* ---------- 4. attesten voor de mutualiteit ---------- */
+function attStd(){const r=BRIEF_ADRES.split('\n'),k=K();return {org:r[0]||'',adres:r.slice(1).join(', '),ondnr:'',onderteken:k.verantwoordelijke||'',functie:'kampverantwoordelijke',plaats:(r[r.length-1]||'').replace(/^\d+\s*/,''),
+  onderwerp:'Deelnameattest {kamp} – {naam}',mailtekst:'Dag {voornaam},\n\nIn bijlage vind je het deelnameattest van {naam} voor {kamp}. Daarmee kun je bij je mutualiteit een tussenkomst voor het kamp aanvragen.\n\nHeeft je mutualiteit een eigen formulier? Stuur het ons gerust door, dan vullen we het in.\n\nSportieve groeten,\n{ondertekening}'}}
+function attCfg(){const s=attStd(),b=K().attest||{};const o={};for(const x of Object.keys(s))o[x]=(b[x]!==undefined&&b[x]!=='')?b[x]:s[x];return o}
+const ATT_VELDEN=[['org','Organisatie'],['adres','Adres organisatie'],['ondnr','Ondernemingsnummer'],['onderteken','Ondertekend door'],['functie','Functie'],['plaats','Opgemaakt te'],['onderwerp','Onderwerp van de mail'],['mailtekst','Tekst van de mail','area']];
+const attOntv=()=>cur('deelnemers').filter(actief).sort(byName);
+function attGekozen(){kampDagOf();const all=attOntv();return attSel?all.filter(p=>attSel.has(p.id)):all}
+function attModel(p){
+  const k=K(),c=attCfg(),ds=kampDagen(),loc=briefLoc(briefCfg());
+  return {attest:1,org:c.org,adres:c.adres,ondnr:c.ondnr,teken:c.onderteken,functie:c.functie,naam:p.naam,
+    intro:`Ondergetekende, ${c.onderteken||MIST}, ${c.functie} van ${c.org||MIST}, verklaart dat onderstaande persoon heeft deelgenomen aan ons kamp.`,
+    rijen:[['Naam deelnemer',p.naam],['Geboortedatum',p.geboortedatum?fdJaar(p.geboortedatum):MIST],['Kamp',[k.naam,k.type].filter(Boolean).join(' – ')],
+      ['Plaats',loc?[loc.naam,loc.adres].filter(Boolean).join(', '):(k.bestemming||MIST)],['Periode',k.start?`van ${fdJaar(k.start)} tot en met ${fdJaar(k.eind||k.start)}`:MIST],
+      ['Aantal dagen',ds.length?String(ds.length)+(ds.length>1?` (${ds.length-1} overnachting${ds.length>2?'en':''})`:''):MIST],['Betaald deelnamebedrag',num(p.betaald)?eur(p.betaald):MIST]],
+    slot:`Opgemaakt te ${c.plaats||MIST} op ${fdJaar(iso(new Date()))}.`,
+    noot:'Dit attest kan voorgelegd worden aan de mutualiteit voor een tussenkomst in de kosten van een sport- of jeugdkamp.'};
+}
+function attHTML(m){
+  return `<article class="letter attest"><div class="lhead"><img src="${BRIEF_LOGO}" alt="S-Sport, iedereen in beweging"><div class="lkop"><div><b>${markHTML(m.org)}</b></div><div>${markHTML(m.adres)}</div><div>Ondernemingsnummer ${markHTML(m.ondnr||MIST)}</div></div></div>
+  <div class="ftitel">Deelnameattest</div><p>${markHTML(m.intro)}</p>
+  <table class="ftab"><tbody>${m.rijen.map(([l,w])=>`<tr><th>${esc(l)}</th><td>${markHTML(w)}</td></tr>`).join('')}</tbody></table>
+  <p style="margin-top:16px">${markHTML(m.slot)}</p>
+  <div class="ateken"><div class="flijn"></div><div>${markHTML(m.teken||MIST)}, ${esc(m.functie)}</div></div><p class="anoot">${esc(m.noot)}</p></article>`;
+}
+function docxAttest(m){
+  return docxLogo()+docxPara([m.org,m.adres,'Ondernemingsnummer '+(m.ondnr||'…')].filter(Boolean),{sz:18,jc:'right',after:360})+
+    `<w:p><w:pPr><w:spacing w:after="200"/></w:pPr>${docxRun('DEELNAMEATTEST',30,1)}</w:p>`+docxPara([m.intro],{jc:'both'})+
+    docxTbl(m.rijen,[3300,5772],{thCol:1,h:520})+docxPara([' '],{after:120})+docxPara([m.slot],{after:600})+
+    docxPara(['______________________________',(m.teken||'…')+', '+m.functie],{after:480})+docxPara([m.noot],{sz:16});
+}
+const attVals=p=>({voornaam:voornaam(p.naam),naam:p.naam,kamp:K().naam||'',ondertekening:attCfg().onderteken});
+const attOnderwerp=p=>zonderMark(vulIn(attCfg().onderwerp,attVals(p)));
+const attTekst=p=>zonderMark(vulIn(attCfg().mailtekst,attVals(p)));
+const attBestand=p=>'Attest '+knaam()+' - '+veilig(p.naam)+'.docx';
+const attMailto=p=>`mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(attOnderwerp(p))}&body=${encodeURIComponent(attTekst(p))}`;
+async function attDownload(lijst){
+  const ps=lijst||attGekozen();if(!ps.length){toast('Kies eerst minstens één deelnemer');return}
+  const fn=ps.length===1?attBestand(ps[0]):'Attesten '+knaam()+'.docx';
+  if(await bewaarBestand(fn,maakDocx(ps.map(attModel))))setTimeout(()=>toast(fn+' staat in je map Downloads'),300);
+}
+async function attMailAlles(){
+  const ps=attGekozen().filter(p=>p.email);if(!ps.length){toast('Niemand met een e-mailadres gekozen');return}
+  toast('Mails worden klaargemaakt…');
+  const items=ps.map((p,i)=>({email:p.email,onderwerp:attOnderwerp(p),tekst:attTekst(p),blob:maakDocx([attModel(p)]),bestand:String(i+1).padStart(2,'0')+' '+attBestand(p)}));
+  if(!await macMail(items,'attesten '+knaam()))return;
+  const k=K(),a=k.attest||{},gm={...(a.gemaild||{})};ps.forEach(p=>gm[p.id]=Date.now());
+  try{await patchRec('kampen',k.id,{attest:{...a,gemaild:gm}})}catch(e){}
+}
+function attView(){
+  const k=K(),c=attCfg(),a=k.attest||{},gm=a.gemaild||{};const all=attOntv(),kies=attGekozen(),sel=new Set(kies.map(p=>p.id));
+  const mist=[];if(!c.ondnr)mist.push('ondernemingsnummer');if(!c.onderteken)mist.push('wie ondertekent');
+  const zg=kies.filter(p=>!p.geboortedatum).length,zb=kies.filter(p=>!num(p.betaald)).length;
+  if(zg)mist.push(`geboortedatum bij ${zg} deelnemer${zg===1?'':'s'}`);if(zb)mist.push(`betaald bedrag bij ${zb} deelnemer${zb===1?'':'s'}`);
+  const met=kies.filter(p=>p.email);
+  return header('Attesten','')+
+  `<p class="hint">Een deelnameattest per deelnemer om bij de mutualiteit in te dienen, ingevuld met naam, geboortedatum, data, aantal dagen en betaald bedrag. Wat <mark>geel</mark> staat, ontbreekt nog.</p>
+  ${mist.length?`<div class="banner" style="margin:0 0 14px"><p>Nog niet ingevuld: <b>${mist.join(', ')}</b>.</p></div>`:''}
+  <div class="briefgrid"><div>
+  <details class="panel" ${Object.keys(a).filter(x=>x!=='gemaild').length?'':'open'}><summary><h3 style="display:inline">Gegevens op het attest</h3></summary>
+   <p class="hint">Leeg laten = standaard (grijs voorbeeld). In de mailtekst vult de app {voornaam}, {naam}, {kamp} en {ondertekening} zelf in.</p>
+   <div class="fields">${ATT_VELDEN.map(([x,l,t])=>`<label class="fld${t==='area'?' wide':''}"><span class="lbl">${l}</span>${t==='area'?`<textarea data-xatt="${x}" rows="7" placeholder="${esc(attStd()[x])}">${esc(a[x]||'')}</textarea>`:`<input data-xatt="${x}" value="${esc(a[x]||'')}" placeholder="${esc(attStd()[x])}">`}</label>`).join('')}</div></details>
+  <div class="panel" style="margin-top:12px"><div class="head" style="margin:0 0 8px"><h3 style="margin:0;flex:1">Voor wie? <span class="lbl">${kies.length}</span></h3>
+   <button class="btn small" data-xattall="1">Iedereen</button><button class="btn small" data-xattall="0">Niemand</button></div>
+   <div class="list" style="gap:2px">${all.map(p=>`<div class="bed xattrij"><label class="xattn"><input type="checkbox" data-xattsel="${esc(p.id)}" ${sel.has(p.id)?'checked':''}> ${gm[p.id]?'<b class="vink">✓</b> ':''}${esc(p.naam)}</label>${p.email?`<button class="btn small" data-xattbijlage="${esc(p.id)}">Attest</button><a class="btn small" href="${esc(attMailto(p))}" target="_blank" rel="noopener" data-xattmail="${esc(p.id)}">Mail</a>`:'<span class="hint" style="margin:0">geen e-mail</span>'}</div>`).join('')||'<p class="hint">Nog geen ingeschreven deelnemers.</p>'}</div>
+   <p class="hint">Per persoon: <b>Attest</b> downloadt het Word-bestand, <b>Mail</b> opent een mail naar het eigen adres. Sleep het attest in die mail.</p></div>
+  </div><div>
+  <div class="row lacts" style="margin-bottom:10px"><button class="btn primary" data-xattdocx="1" ${kies.length?'':'disabled'}>Download als Word (${kies.length})</button><button class="btn" data-briefprint="1" ${kies.length?'':'disabled'}>Afdrukken / PDF</button></div>
+  ${met.length?`<div class="panel mailpanel" style="margin-bottom:14px"><div class="mailalles"><button class="btn primary" data-xattscript="1">Alle ${met.length} attesten mailen via Mail (met bijlage)</button>${macUitleg(1)}<p class="hint" style="margin:0">Werkt alleen op een Mac met het programma Mail.</p></div></div>`:''}
+  <div class="letters">${kies.map(p=>attHTML(attModel(p))).join('')||empty('Geen attesten gekozen','Vink hiernaast aan voor wie je een attest maakt.')}</div>
+  </div></div>`;
+}
+
+/* ---------- 5. betalingsherinnering ---------- */
+function herStd(){return {onderwerp:'Herinnering betaling {kamp}',rekening:'',onderteken:K().verantwoordelijke||'',
+  tekst:'Dag {voornaam},\n\nBedankt voor je inschrijving voor {kamp} ({startdag} – {einddag}).\nVolgens onze gegevens staat er nog {openstaand} open van de kampprijs van {prijs} (al betaald: {betaald}).\n\nWil je het openstaande bedrag overschrijven op rekeningnummer {rekening}, met de vermelding "{kamp} – {naam}"?\n\nHeb je intussen al betaald? Dan mag je deze mail negeren.\n\nSportieve groeten,\n{ondertekening}'}}
+function herCfg(){const s=herStd(),b=K().herinnering||{};const o={};for(const x of Object.keys(s))o[x]=(b[x]!==undefined&&b[x]!=='')?b[x]:s[x];return o}
+const HER_VELDEN=[['onderwerp','Onderwerp'],['rekening','Rekeningnummer (IBAN)'],['onderteken','Ondertekening'],['tekst','Tekst van de mail','area']];
+function herVals(p){const k=K(),c=herCfg(),b=num(k.bijdrage),bt=num(p.betaald);
+  return {voornaam:voornaam(p.naam),naam:p.naam,kamp:k.naam||'',startdag:fdLang(k.start),einddag:fdLang(k.eind),prijs:eur(b),betaald:eur(bt),openstaand:eur(Math.max(0,b-bt)),rekening:c.rekening,ondertekening:c.onderteken}}
+const herOnderwerp=p=>zonderMark(vulIn(herCfg().onderwerp,herVals(p)));
+const herTekst=p=>zonderMark(vulIn(herCfg().tekst,herVals(p)));
+const herMailto=p=>`mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(herOnderwerp(p))}&body=${encodeURIComponent(herTekst(p))}`;
+const herOpen=()=>{const b=num(K().bijdrage);return b?cur('deelnemers').filter(r=>actief(r)&&num(r.betaald)<b).sort(byName):[]};
+async function herMailAlles(){
+  const ps=herOpen().filter(p=>p.email);if(!ps.length){toast('Niemand met een e-mailadres');return}
+  if(!await macMail(ps.map(p=>({email:p.email,onderwerp:herOnderwerp(p),tekst:herTekst(p)})),'herinneringen '+knaam()))return;
+  const k=K(),h=k.herinnering||{},gm={...(h.gemaild||{})};ps.forEach(p=>gm[p.id]=Date.now());
+  try{await patchRec('kampen',k.id,{herinnering:{...h,gemaild:gm}})}catch(e){}
+}
+function herView(){
+  const k=K(),b=num(k.bijdrage);
+  if(!b)return header('Betalingsherinnering','')+empty('Nog geen kampprijs','Vul eerst bij het kamp de prijs per deelnemer in. Dan zie je hier wie nog moet betalen.',`<button class="btn primary" data-edit="kampen" data-id="${esc(k.id)}">Kamp aanpassen</button>`);
+  const h=k.herinnering||{},gm=h.gemaild||{},c=herCfg();const ps=herOpen(),met=ps.filter(p=>p.email);
+  const tot=ps.reduce((s,p)=>s+b-num(p.betaald),0);const vb=ps[0];
+  return header('Betalingsherinnering','')+
+  `<p class="hint">Iedereen die nog niet de volledige kampprijs (${esc(eur(b))}) betaald heeft. Stuur een herinnering met het juiste openstaande bedrag, of zet iemand op betaald.</p>
+  ${!c.rekening&&ps.length?`<div class="banner" style="margin:0 0 14px"><p>Vul het <b>rekeningnummer</b> in bij “Tekst van de herinnering”, zodat het in de mail staat.</p></div>`:''}
+  <div class="panel xteller${ps.length?'':' vol'}"><div>${ps.length?`<b class="num">${ps.length}</b> deelnemer${ps.length===1?' moet':'s moeten'} samen nog <b class="num">${esc(eur(tot))}</b> betalen`:'<b>Iedereen heeft betaald ✓</b>'}</div>
+   ${met.length?`<div class="mailalles"><button class="btn primary" data-xherscript="1">Alle ${met.length} herinneringen klaarzetten in Mail</button>${macUitleg(0)}</div>`:''}</div>
+  <div class="briefgrid"><div>
+  <details class="panel"><summary><h3 style="display:inline">Tekst van de herinnering</h3></summary>
+   <p class="hint">De app vult {voornaam}, {naam}, {kamp}, {startdag}, {einddag}, {prijs}, {betaald}, {openstaand}, {rekening} en {ondertekening} zelf in. Leeg laten = standaard.</p>
+   <div class="fields">${HER_VELDEN.map(([x,l,t])=>`<label class="fld${t==='area'?' wide':''}"><span class="lbl">${l}</span>${t==='area'?`<textarea data-xher="${x}" rows="12" placeholder="${esc(herStd()[x])}">${esc(h[x]||'')}</textarea>`:`<input data-xher="${x}" value="${esc(h[x]||'')}" placeholder="${esc(herStd()[x])}">`}</label>`).join('')}</div></details>
+  ${vb?`<div class="panel" style="margin-top:12px"><h3>Voorbeeld voor ${esc(vb.naam)}</h3><div class="hint" style="margin:0 0 6px"><b>${esc(herOnderwerp(vb))}</b></div><div class="xpre">${markHTML(vulIn(c.tekst,herVals(vb)))}</div></div>`:''}
+  </div><div>
+  <div class="list" style="gap:4px">${ps.map(p=>{const open=b-num(p.betaald);return `<div class="bed xherrij"><span class="xn">${pTag(p)}<b>${esc(p.naam)}</b><small>betaald ${esc(eur(p.betaald))} van ${esc(eur(b))}${gm[p.id]?' · herinnerd op '+esc(fd(iso(new Date(gm[p.id])))):''}</small></span><span class="chip r">nog ${esc(eur(open))}</span>
+   ${p.email?`<a class="btn small" href="${esc(herMailto(p))}" target="_blank" rel="noopener" data-xhermail="${esc(p.id)}">Mail</a>`:`<button class="btn small" data-edit="deelnemers" data-id="${esc(p.id)}">E-mail invullen</button>`}<button class="btn small" data-xbetaald="${esc(p.id)}">Betaald</button></div>`}).join('')||empty('Niemand moet nog betalen','Alle ingeschreven deelnemers hebben de volledige prijs betaald.')}</div>
+  </div></div>`;
+}
+
+/* ---------- 6. takenlijst ---------- */
+const TAAK_STD=[['Kampplaats en verblijf vastleggen',-180],['Vervoer (bus, volgwagen) reserveren',-90],['Verzekering in orde brengen',-60],['Activiteiten reserveren',-60],['Monitoren bevestigen en taken verdelen',-45],['Uitnodigingsbrief versturen',-45],['Betalingen nakijken en herinneringen sturen',-21],['Medicatiefiches binnen',-14],['Eten en boodschappen bestellen',-10],['EHBO-koffer nakijken en aanvullen',-7],['Materiaal klaarzetten en inladen',-2],['Noodfiche afdrukken',-1],['Afrekening maken',14],['Attesten voor de mutualiteit versturen',14]];
+async function taakStd(){
+  const k=K(),s=pd(k.start);const best=new Set(cur('taken').map(r=>normN(r.titel)));let n=0;
+  for(const [t,o] of TAAK_STD){if(best.has(normN(t)))continue;let dl='';if(s){const d=new Date(s);d.setDate(d.getDate()+o);dl=iso(d)}
+    await saveRec('taken',null,{titel:t,deadline:dl,klaar:'Nog te doen'});n++}
+  toast(n?n+' taken toegevoegd':'Alle standaardtaken staan er al');
+}
+function takenView(){
+  kampDagOf();const today=iso(new Date());const ts=cur('taken');const mons=cur('monitoren').sort(byName);
+  const fl=xWie?ts.filter(r=>xWie==='-'?!r.wie:r.wie===xWie):ts;
+  const klaar=fl.filter(r=>r.klaar==='Klaar').sort((a,b)=>(b.gewijzigd||0)-(a.gewijzigd||0));
+  const open=fl.filter(r=>r.klaar!=='Klaar').sort((a,b)=>(a.deadline||'9').localeCompare(b.deadline||'9')||String(a.titel).localeCompare(String(b.titel),'nl'));
+  const laat=open.filter(r=>r.deadline&&r.deadline<today),rest=open.filter(r=>!(r.deadline&&r.deadline<today));
+  const pct=fl.length?Math.round(klaar.length/fl.length*100):0;
+  const rij=r=>{const k=r.klaar==='Klaar';const dd=r.deadline?Math.round((pd(r.deadline)-pd(today))/864e5):null;
+    const wanneer=r.deadline?(k?fd(r.deadline):dd<0?`${-dd} dag${dd===-1?'':'en'} te laat`:dd===0?'vandaag':dd===1?'morgen':`nog ${dd} dagen`):'';
+    return `<div class="xtaak${k?' klaar':''}"><button class="xbox${k?' aan':''}" data-xtaak="${esc(r.id)}" aria-pressed="${k}" aria-label="${esc(r.titel)}: ${k?'klaar':'nog te doen'}">${k?'✓':''}</button><span class="xn"><b>${esc(r.titel)}</b>${r.klaar==='Bezig'?' <span class="chip g">bezig</span>':''}<small>${[r.wie?'👤 '+esc(nameOf('monitoren',r.wie)):'',r.deadline?`<span class="${!k&&dd<0?'xlaat':''}">${esc(fd(r.deadline))}${k?'':' · '+wanneer}</span>`:''].filter(Boolean).join(' · ')}</small>${r.notities?`<small>${esc(r.notities)}</small>`:''}</span><button class="btn small" data-edit="taken" data-id="${esc(r.id)}">Wijzig</button></div>`};
+  const fchip=(v,l,n)=>`<button class="chip${xWie===v?' o':''}" data-xwie="${esc(v)}" aria-pressed="${xWie===v}">${esc(l)}${n!=null?' · '+n:''}</button>`;
+  const nOpen=f=>ts.filter(r=>r.klaar!=='Klaar'&&f(r)).length;
+  return header('Takenlijst','taken')+
+  `<p class="hint">Alles wat voor het kamp geregeld moet worden. Geef elke taak een monitor en een deadline, en vink af wat klaar is.</p>
+  ${ts.length?`<div class="row xchips" role="group" aria-label="Wie">${fchip('','Iedereen',nOpen(()=>1))}${mons.filter(m=>ts.some(r=>r.wie===m.id)).map(m=>fchip(m.id,voornaam(m.naam),nOpen(r=>r.wie===m.id))).join('')}${ts.some(r=>!r.wie)?fchip('-','Niemand toegewezen',nOpen(r=>!r.wie)):''}</div>
+  <div class="panel xteller${open.length?'':' vol'}"><div><b class="num">${klaar.length} / ${fl.length}</b> klaar${laat.length?` · <span class="xlaat">${laat.length} te laat</span>`:''}</div><div class="xprog"><i style="width:${pct}%"></i></div></div>`:''}
+  ${laat.length?`<h3 class="xkop xlaat">Te laat</h3><div class="xlijst">${laat.map(rij).join('')}</div>`:''}
+  ${rest.length?`<h3 class="xkop">Nog te doen</h3><div class="xlijst">${rest.map(rij).join('')}</div>`:''}
+  ${klaar.length?`<details class="xklaar"><summary><h3 class="xkop" style="display:inline">Klaar (${klaar.length})</h3></summary><div class="xlijst">${klaar.map(rij).join('')}</div></details>`:''}
+  ${ts.length?'':empty('Nog geen taken','Begin met een lijst van de gewone voorbereidingen, met deadlines volgens de startdatum van het kamp.','')}
+  <div class="row" style="margin-top:14px"><button class="btn" data-xtaakstd="1">${ts.length?'Standaardtaken aanvullen':'Standaardtaken toevoegen'}</button></div>`;
+}
+
+/* ---------- klikken en wijzigen ---------- */
+const zeker=t=>{if(t.dataset.zeker)return true;t.dataset.zeker='1';const o=t.textContent;t.textContent='Zeker? Klik nogmaals';setTimeout(()=>{if(t.isConnected){delete t.dataset.zeker;t.textContent=o}},3500);return false};
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button');if(!t)return;const ds=t.dataset;const k=K();
+  if(ds.xdag){xDag=ds.xdag;render();return}
+  if(ds.xmom){xMoment=ds.xmom;render();return}
+  if(ds.xwie!==undefined){xWie=ds.xwie;render();return}
+  if(ds.xnieuwmom){const inp=$('#xmomIn');const v=(inp&&inp.value||'').trim();if(!v){inp&&inp.focus();return}
+    if(!appelMomenten().includes(v)){try{await patchRec('kampen',k.id,{appelExtra:[...(k.appelExtra||[]),v]})}catch(err){toast('Bewaren lukte niet');return}}xMoment=v;render();return}
+  if(ds.xmomweg){if(!zeker(t))return;const d=xMoment;try{await patchRec('kampen',k.id,{appelExtra:(k.appelExtra||[]).filter(x=>x!==d)})}catch(err){}xMoment='';render();return}
+  if(ds.xappel){await zetVink('appel',kampDagOf(),xMoment+'|'+ds.xappel,t.getAttribute('aria-pressed')!=='true');return}
+  if(ds.xalle){t.disabled=true;const d=kampDagOf(),vm=vinkMap('appel',d);for(const p of appelPs())if(!vm.has(xMoment+'|'+p.id))await zetVink('appel',d,xMoment+'|'+p.id,true);render();return}
+  if(ds.xwis){if(!zeker(t))return;const d=kampDagOf();for(const p of appelPs())await zetVink('appel',d,xMoment+'|'+p.id,false);render();return}
+  if(ds.xmed){await zetVink('med',kampDagOf(),ds.xmed,t.getAttribute('aria-pressed')!=='true');return}
+  if(ds.xtaak){const r=get('taken',ds.xtaak);if(r)try{await patchRec('taken',r.id,{klaar:r.klaar==='Klaar'?'Nog te doen':'Klaar'})}catch(err){toast('Bewaren lukte niet')}return}
+  if(ds.xtaakstd){t.disabled=true;try{await taakStd()}catch(err){toast('Toevoegen lukte niet')}render();return}
+  if(ds.xattall){kampDagOf();attSel=ds.xattall==='1'?null:new Set();render();return}
+  if(ds.xattdocx){t.disabled=true;try{await attDownload()}finally{t.disabled=false}return}
+  if(ds.xattbijlage){const p=get('deelnemers',ds.xattbijlage);if(p){t.disabled=true;try{await attDownload([p])}finally{t.disabled=false}}return}
+  if(ds.xattscript){t.disabled=true;try{await attMailAlles()}finally{t.disabled=false}return}
+  if(ds.xherscript){t.disabled=true;try{await herMailAlles()}finally{t.disabled=false}return}
+  if(ds.xbetaald){if(!zeker(t))return;const p=get('deelnemers',ds.xbetaald);if(p)try{await patchRec('deelnemers',p.id,{betaald:num(k.bijdrage)});toast(p.naam+' staat op betaald')}catch(err){toast('Bewaren lukte niet')}return}
+});
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-xattmail],a[data-xhermail]');if(!a)return;const k=K();if(!k.id)return;
+  const veld=a.dataset.xattmail?'attest':'herinnering',pid=a.dataset.xattmail||a.dataset.xhermail;
+  setTimeout(()=>{const o=K()[veld]||{};patchRec('kampen',k.id,{[veld]:{...o,gemaild:{...(o.gemaild||{}),[pid]:Date.now()}}}).catch(()=>{})},400)});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='xmomIn'){e.preventDefault();const b=document.querySelector('[data-xnieuwmom]');b&&b.click()}});
+document.addEventListener('change',async e=>{
+  const t=e.target,k=K();if(!k.id)return;
+  if(t.dataset.xatt){try{await patchRec('kampen',k.id,{attest:{...(k.attest||{}),[t.dataset.xatt]:t.value}})}catch(err){toast('Bewaren lukte niet')}return}
+  if(t.dataset.xher){try{await patchRec('kampen',k.id,{herinnering:{...(k.herinnering||{}),[t.dataset.xher]:t.value}});if(t.dataset.xher==='tekst')toast('Tekst bewaard')}catch(err){toast('Bewaren lukte niet')}return}
+  if(t.dataset.xattsel){if(!attSel)attSel=new Set(attGekozen().map(p=>p.id));if(t.checked)attSel.add(t.dataset.xattsel);else attSel.delete(t.dataset.xattsel);render();return}
+});
 
 function vergLijst(col){
   const alg=col==='algvergaderingen';
@@ -1525,6 +1859,12 @@ maaltijden(){
   (diets.length?`<div class="panel" style="margin-top:18px"><h3>Dieetwensen in de groep</h3><div class="list">${diets.map(r=>`<div class="li"><div class="x"><b>${esc(r.naam)}</b><small>${esc(r.dieet)}</small></div></div>`).join('')}</div></div>`:'');
 },
 brief(){return briefView()},
+aanwezig(){return aanwezigView()},
+medronde(){return medrondeView()},
+noodfiche(){return noodView()},
+attesten(){return attView()},
+herinnering(){return herView()},
+taken(){return takenView()},
 ploegen(){
   const gs=cur('ploegen').sort(byName);const dl=cur('deelnemers').filter(actief).sort(byName);
   const zonder=dl.filter(p=>!ploegVan(p));
@@ -1683,6 +2023,12 @@ function tiles(){
     boekhouding:[cur('boekhouding').length,'saldo '+eur(m.saldo)],
     rekeningen:[cur('boekhouding').filter(r=>r.bon).length,'ingescand'],
     mails:[cur('mails').length,cur('mails').filter(r=>r.status!=='Verstuurd').length+' concept'],
+    medronde:[cur('medicatie').length,'medicatie'],
+    aanwezig:[cur('deelnemers').filter(actief).length,'tellen'],
+    noodfiche:[cur('deelnemers').filter(actief).length,'deelnemers'],
+    attesten:[cur('deelnemers').filter(actief).length,'attesten'],
+    herinnering:[k.bijdrage?cur('deelnemers').filter(r=>actief(r)&&num(r.betaald)<num(k.bijdrage)).length:0,'nog te betalen'],
+    taken:[cur('taken').filter(r=>r.klaar!=='Klaar').length,'open'],
     vergaderingen:[cur('vergaderingen').length,cur('vergaderingen').filter(r=>r.datum>=today).length+' gepland'],
     blog:[cur('blog').length,'berichten'],
     contacten:[data.contacten.filter(c=>!c.kamp||c.kamp===curKamp).length,'contacten'],
@@ -2024,6 +2370,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-1718 -->
+<!-- versie 20261126-2153 -->
 </body>
 </html>
