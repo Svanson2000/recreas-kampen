@@ -1939,13 +1939,17 @@ function aandacht(){
    Elk toestel schrijft zijn eigen bestand recreas-sync-<toestel>.json in een gedeelde map (iCloud Drive, Dropbox,
    OneDrive, Google Drive). Foto's staan ernaast als media-<sleutel>. Elk toestel leest de bestanden van de anderen
    en voegt samen: per record wint de laatste wijziging; verwijderen wordt onthouden. */
-var WEG={},toestel=null,syncMap=null,syncStatus='',syncBezig=false,syncLaatst=0,syncGezien={},syncAndere={},schrijfNodig=true,syncT=0,syncWacht=false,installEvt=null;
+var WEG={},toestel=null,syncMap=null,syncStatus='',syncBezig=false,syncLaatst=0,syncGezien={},syncAndere={},schrijfNodig=true,syncT=0,syncWacht=false,installEvt=null,syncSrv=null,koppelNieuw=null;
+/* koppellink: #koppel=<adres en sleutel van de eigen sync-server> */
+(()=>{const m=location.hash.match(/^#koppel=([A-Za-z0-9_-]+)$/);if(!m)return;
+  try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));if(o&&o.u&&o.s)koppelNieuw={url:String(o.u),sleutel:String(o.s)}}catch(e){}
+  history.replaceState(null,'',location.pathname+location.search+'#overzicht')})();
 const SYNC_AAN=STANDALONE;
 const MAP_OK=SYNC_AAN&&typeof window.showDirectoryPicker==='function';
 const eigenBestand=()=>'recreas-sync-'+(toestel?toestel.id:'x')+'.json';
 const tsv=r=>r?(r.gewijzigd||r.aangemaakt||0):0;
 function noteerWeg(col,id){(WEG[col]=WEG[col]||{})[id]=Date.now();idbDo('kv','readwrite',st=>st.put(WEG,'weg')).catch(()=>{})}
-function syncPlan(){if(!SYNC_AAN)return;schrijfNodig=true;clearTimeout(syncT);if(syncMap)syncT=setTimeout(()=>syncNu(false),4000)}
+function syncPlan(){if(!SYNC_AAN)return;schrijfNodig=true;clearTimeout(syncT);if(syncMap)syncT=setTimeout(()=>syncNu(false),syncMap.server?1500:4000)}
 async function syncLaad(){
   if(!SYNC_AAN)return;
   try{WEG=(await idbDo('kv','readonly',st=>st.get('weg')))||{}}catch(e){}
@@ -1953,8 +1957,11 @@ async function syncLaad(){
   if(!toestel||!toestel.id){toestel={id:uid(),naam:''};idbDo('kv','readwrite',st=>st.put(toestel,'toestel')).catch(()=>{})}
   try{syncAndere=(await idbDo('kv','readonly',st=>st.get('andere')))||{}}catch(e){}
   if(MAP_OK){try{syncMap=(await idbDo('kv','readonly',st=>st.get('map')))||null}catch(e){}}
+  try{syncSrv=(await idbDo('kv','readonly',st=>st.get('server')))||null}catch(e){}
+  if(syncSrv&&syncSrv.url){syncMap=serverMap(syncSrv)}else syncSrv=null;
 }
 function syncNaStart(){
+  if(koppelNieuw){const c=koppelNieuw;koppelNieuw=null;setTimeout(()=>serverKoppel(c,false),300);return}
   if(!syncMap)return;
   mapToestemming(false).then(ok=>{if(ok)syncNu(false);else{syncStatus='toestemming';setSync('err','Klik om te synchroniseren');scheduleRender()}});
 }
@@ -1995,10 +2002,37 @@ async function mapKies(){
     await idbDo('kv','readwrite',st=>st.put(h,'map'));schrijfNodig=true;await syncNu(true);render()}
   catch(e){if(!e||e.name!=='AbortError')toast('Map kiezen lukte niet')}
 }
-async function mapStop(){syncMap=null;syncStatus='';syncGezien={};try{await idbDo('kv','readwrite',st=>st.delete('map'))}catch(e){}setSync('ok','Op dit toestel');render()}
+async function mapStop(){syncMap=null;syncSrv=null;syncStatus='';syncGezien={};try{await idbDo('kv','readwrite',st=>st.delete('map'));await idbDo('kv','readwrite',st=>st.delete('server'))}catch(e){}setSync('ok','Op dit toestel');render()}
+/* ---------- eigen sync-server (KINA Host op de Mac) ----------
+   gedraagt zich als een gedeelde map, zodat de rest van de sync ongewijzigd blijft */
+function serverMap(cfg){
+  const basis=cfg.url.replace(/\/+$/,'')+'/.netlify/functions/sync';
+  const haal=async(q,opt={})=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),opt.body?120000:20000);
+    try{const r=await fetch(basis+q,{...opt,signal:c.signal,cache:'no-store',headers:{'x-sync-sleutel':cfg.sleutel,...(opt.headers||{})}});
+      if(r.status===401)throw Object.assign(new Error('sleutel'),{sleutel:true});if(!r.ok)throw new Error('server '+r.status);return r}finally{clearTimeout(t)}};
+  const lees=naam=>haal('?bestand='+encodeURIComponent(naam));
+  const handle=(naam,tijd)=>({kind:'file',name:naam,getFile:async()=>naam.endsWith('.json')?{name:naam,lastModified:tijd,text:async()=>(await lees(naam)).text()}:await (await lees(naam)).blob(),
+    createWritable:async()=>{const delen=[];return {write:async x=>{delen.push(x)},close:async()=>{const b=new Blob(delen);await haal('?bestand='+encodeURIComponent(naam),{method:'PUT',body:b,headers:{'content-type':b.type||delen[0]&&delen[0].type||'application/octet-stream'}})}}}});
+  return {server:true,cfg,name:'je Mac ('+cfg.url.replace(/^https?:\/\//,'').replace(/\/.*$/,'')+')',
+    async *entries(){const o=await (await haal('')).json();for(const b of o.bestanden||[])yield [b.naam,handle(b.naam,b.tijd)]},
+    async getFileHandle(naam,opt){return handle(naam,0)}};
+}
+async function serverKoppel(cfg,stil){
+  cfg={url:String(cfg.url||'').trim().replace(/\/+$/,''),sleutel:String(cfg.sleutel||'').trim()};
+  if(!/^https?:\/\/[^\s]+$/.test(cfg.url)||cfg.sleutel.length<16){if(!stil)toast('Vul het adres en de sleutel volledig in');return false}
+  const m=serverMap(cfg);
+  try{for await (const x of m.entries())break}catch(e){if(!stil)toast(e.sleutel?'De sleutel klopt niet':'De server op je Mac is niet bereikbaar');return false}
+  syncSrv=cfg;syncMap=m;syncGezien={};schrijfNodig=true;
+  try{await idbDo('kv','readwrite',st=>st.put(cfg,'server'));await idbDo('kv','readwrite',st=>st.delete('map'))}catch(e){}
+  await syncNu(true);render();toast('Gekoppeld aan je Mac');return true;
+}
+const koppelLink=()=>{if(!syncSrv)return '';const j=btoa(unescape(encodeURIComponent(JSON.stringify({u:syncSrv.url,s:syncSrv.sleutel})))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return location.origin+location.pathname+'#koppel='+j};
 async function mapSchrijf(bestaand){
   const ws=async(naam,inh)=>{const fh=await syncMap.getFileHandle(naam,{create:true});const w=await fh.createWritable();await w.write(inh);await w.close()};
-  for(const [k,blob] of await idbAll('media')){if(!bestaand.has('media-'+k))await ws('media-'+k,blob)}
+  for(const [k,blob] of await idbAll('media')){if(bestaand.has('media-'+k))continue;
+    if(!syncMap.server){await ws('media-'+k,blob);continue}
+    if(blob.size>9e6)continue;try{await ws('media-'+k,blob)}catch(e){if(e.sleutel)throw e}}
   if(schrijfNodig||!bestaand.has(eigenBestand())){await ws(eigenBestand(),JSON.stringify(syncSnap()));schrijfNodig=false}
 }
 async function syncNu(vraag){
@@ -2013,16 +2047,17 @@ async function syncNu(vraag){
         const r=await syncMerge(o,async key=>{if(o.media&&o.media[key])return dataUrlBlob(o.media[key]);try{return await (await syncMap.getFileHandle('media-'+key)).getFile()}catch(e){return null}});
         nieuw+=r.nieuw;weg+=r.weg;syncGezien[h.name]=f.lastModified}catch(e){}}
     await mapSchrijf(bestaand);syncLaatst=Date.now();syncStatus='ok';
-  }catch(e){ok=false;syncStatus='fout'}
+  }catch(e){ok=false;syncStatus=syncMap&&syncMap.server?'offline':'fout'}
   syncBezig=false;
-  setSync(ok?'ok':'err',ok?'Gesynchroniseerd '+tijdVan(syncLaatst):'Map niet bereikbaar');
+  setSync(ok?'ok':'err',ok?'Gesynchroniseerd '+tijdVan(syncLaatst):syncStatus==='offline'?'Mac niet bereikbaar':'Map niet bereikbaar');
   if(nieuw||weg)toast(`Gesynchroniseerd: ${nieuw} nieuw of gewijzigd${weg?', '+weg+' verwijderd':''}`);
   const p=document.getElementById('syncInfo');if(p)p.innerHTML=syncInfoHTML();
 }
 if(SYNC_AAN){
-  setInterval(()=>{if(syncMap&&syncStatus==='ok'&&document.visibilityState==='visible')syncNu(false)},45000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncMap&&syncStatus==='ok')syncNu(false)});
-  window.addEventListener('online',()=>{if(syncMap&&syncStatus==='ok')syncNu(false)});
+  const magAuto=()=>syncMap&&(syncStatus==='ok'||syncStatus==='offline'||(syncMap.server&&!syncStatus));
+  setInterval(()=>{if(magAuto()&&document.visibilityState==='visible'&&(syncMap.server||Date.now()-syncLaatst>40000))syncNu(false)},20000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&magAuto())syncNu(false)});
+  window.addEventListener('online',()=>{if(magAuto())syncNu(false)});
   document.addEventListener('focusout',()=>setTimeout(()=>{if(syncWacht&&!aanHetTypen()){syncWacht=false;render()}},50));
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;scheduleRender()});
   window.addEventListener('appinstalled',()=>{installEvt=null;toast('De app staat nu op deze computer');scheduleRender()});
@@ -2048,6 +2083,8 @@ async function bestandLees(files){
 /* ---------- paneel op de startpagina ---------- */
 function syncInfoHTML(){
   if(!syncMap)return '';
+  if(syncMap.server){const st=syncStatus==='offline'?'<b>Je Mac is nu niet bereikbaar.</b> Je werkt gewoon verder; zodra de Mac aanstaat en Tailscale verbonden is, loopt alles vanzelf samen.':syncLaatst?'Laatst gesynchroniseerd om <b>'+tijdVan(syncLaatst)+'</b>. Daarna gebeurt het vanzelf, enkele seconden na elke wijziging.':'Nog niet gesynchroniseerd.';
+    return `<p style="margin:0 0 8px">Gekoppeld aan <b>${esc(syncMap.name)}</b>. ${st}</p>`}
   const st=syncStatus==='toestemming'?'<b>Klik op “Nu synchroniseren”</b> om de map opnieuw te openen (de browser vraagt dat na het opstarten).':syncStatus==='fout'?'<b>De map is niet bereikbaar.</b> Kies ze opnieuw.':syncLaatst?'Laatst gesynchroniseerd om <b>'+tijdVan(syncLaatst)+'</b>. Daarna gebeurt het vanzelf na elke wijziging en elke minuut.':'Nog niet gesynchroniseerd.';
   return `<p style="margin:0 0 8px">Gedeelde map: <b>${esc(syncMap.name||'gekozen')}</b>. ${st}</p>`;
 }
@@ -2057,13 +2094,20 @@ function syncPanel(){
   const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const andere=Object.values(syncAndere).sort((a,b)=>b.tijd-a.tijd);
   return `<div class="panel syncpanel" style="margin-top:14px"><h3>Samenwerken met andere monitoren</h3>
-  <p class="hint" style="margin-top:0">De app werkt volledig zonder internet. Wil je samenwerken? Kies allemaal <b>dezelfde gedeelde map</b> in iCloud Drive, Dropbox, OneDrive of Google Drive. Elk toestel zet zijn wijzigingen daar, en haalt die van de anderen op. Zonder internet werk je gewoon verder: zodra er weer verbinding is, loopt alles samen.</p>
+  ${syncMap&&syncMap.server?'<p class="hint" style="margin-top:0">Dit toestel blijft vanzelf gelijk met je Mac en met alle andere gekoppelde toestellen. Zonder verbinding werk je gewoon verder: zodra de Mac weer bereikbaar is, loopt alles samen.</p>':`<p class="hint" style="margin-top:0">De app werkt volledig zonder internet. Wil je samenwerken? Kies allemaal <b>dezelfde gedeelde map</b> in iCloud Drive, Dropbox, OneDrive of Google Drive. Elk toestel zet zijn wijzigingen daar, en haalt die van de anderen op. Zonder internet werk je gewoon verder: zodra er weer verbinding is, loopt alles samen.</p>`}
   <label class="fld" style="max-width:360px"><span class="lbl">Naam van dit toestel</span><input id="toestelNaam" value="${esc(toestel&&toestel.naam||'')}" placeholder="bv. Laptop Sven"></label>
-  ${MAP_OK?`<div id="syncInfo">${syncInfoHTML()}</div><div class="row">${syncMap?`<button class="btn small primary" data-xsyncnu="1">Nu synchroniseren</button><button class="btn small" data-xsynckies="1">Andere map</button><button class="btn small" data-xsyncstop="1">Stop met synchroniseren</button>`:`<button class="btn primary" data-xsynckies="1">Kies de gedeelde map</button>`}</div>
+  ${syncMap&&syncMap.server?`<div id="syncInfo">${syncInfoHTML()}</div><div class="row"><button class="btn small primary" data-xsyncnu="1">Nu synchroniseren</button><button class="btn small" data-xkoppeldeel="1">Koppel nog een toestel</button><button class="btn small" data-xsyncstop="1">Ontkoppel</button></div>
+   <p class="hint">Koppel nog een toestel: stuur de koppellink naar je iPhone (bv. met AirDrop) en open hem daar in Safari. De link bevat de geheime sleutel: stuur hem alleen naar je eigen toestellen of naar monitoren die je vertrouwt.</p>`
+  :`${MAP_OK?`<div id="syncInfo">${syncInfoHTML()}</div><div class="row">${syncMap?`<button class="btn small primary" data-xsyncnu="1">Nu synchroniseren</button><button class="btn small" data-xsynckies="1">Andere map</button><button class="btn small" data-xsyncstop="1">Stop met synchroniseren</button>`:`<button class="btn primary" data-xsynckies="1">Kies de gedeelde map</button>`}</div>
    ${syncMap?'':'<p class="hint">Tip: maak eerst een map “Recreas sync” in iCloud Drive, Dropbox, OneDrive of Google Drive en deel ze met de andere monitoren.</p>'}`
   :`<p class="hint" style="margin:4px 0 8px">In ${ios?'Safari op iPhone of iPad':'deze browser'} gaat het in twee stappen (op een computer met Chrome of Edge gebeurt het automatisch):</p>
    <div class="row"><button class="btn small primary" data-xsyncbewaar="1">1. Bewaar mijn wijzigingen</button><label class="btn small">2. Haal wijzigingen van anderen op<input type="file" id="syncIn" multiple hidden></label></div>
    <ol class="hint"><li>Bij stap 1 kies je <b>Bewaar in Bestanden</b> en dan de gedeelde map.</li><li>Bij stap 2 open je de gedeelde map, tik je op <b>Selecteer</b> en kies je alle bestanden.</li></ol>`}
+   <details class="srvkoppel" style="margin-top:10px"><summary><b>Altijd automatisch synchroniseren via je Mac</b></summary>
+   <p class="hint">Heb je de sync-dienst van KINA Host op je Mac? Open dan de koppellink die je Mac je stuurt, of vul hier het adres en de sleutel in. Daarna blijft dit toestel vanzelf gelijk met je Mac, ook op iPhone en in Safari.</p>
+   <div class="row" style="align-items:flex-end"><label class="fld" style="flex:2;min-width:220px"><span class="lbl">Adres van je Mac</span><input id="srvUrl" placeholder="https://…ts.net:8444" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+   <label class="fld" style="flex:2;min-width:220px"><span class="lbl">Sync-sleutel</span><input id="srvSleutel" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+   <button class="btn small primary" data-xsrvkoppel="1">Koppel</button></div></details>`}
   ${andere.length?`<div class="lbl" style="margin-top:10px">Andere toestellen</div><div class="list" style="gap:2px">${andere.map(a=>`<div class="bed"><span>${esc(a.naam||'Toestel zonder naam')}</span><span class="hint" style="margin:0">laatste wijziging ${esc(a.tijd?fd(iso(new Date(a.tijd)))+' '+tijdVan(a.tijd):'?')}</span></div>`).join('')}</div>`:''}
   <div class="lbl" style="margin-top:14px">App op dit toestel</div>
   ${als?'<p class="hint" style="margin:4px 0 0">Je gebruikt de app ✓ Ze werkt ook zonder internet.</p>':installEvt?`<div class="row" style="margin-top:6px"><button class="btn small primary" data-xinstall="1">Installeer als app op deze computer</button></div><p class="hint">Daarna start je ze via het icoon, zoals elk ander programma, ook zonder internet.</p>`
@@ -2073,6 +2117,10 @@ function syncPanel(){
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button');if(!t)return;const ds=t.dataset;
   if(ds.xsynckies){await mapKies();return}
+  if(ds.xsrvkoppel){t.disabled=true;try{await serverKoppel({url:($('#srvUrl')||{}).value,sleutel:($('#srvSleutel')||{}).value})}finally{t.disabled=false}return}
+  if(ds.xkoppeldeel){const l=koppelLink();if(!l)return;
+    if(navigator.share){try{await navigator.share({title:'Koppel Recreas',url:l});return}catch(err){if(err&&err.name==='AbortError')return}}
+    try{await navigator.clipboard.writeText(l);toast('Koppellink gekopieerd')}catch(err){prompt('Koppellink',l)}return}
   if(ds.xsyncnu){await syncNu(true);render();return}
   if(ds.xsyncstop){if(!zeker(t))return;await mapStop();return}
   if(ds.xsyncbewaar){t.disabled=true;try{await bestandBewaar()}finally{t.disabled=false}return}
@@ -2818,6 +2866,6 @@ route();boot();
 <script>
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
-<!-- versie 20261126-2306 -->
+<!-- versie 20261127-1848 -->
 </body>
 </html>
